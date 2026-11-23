@@ -86,7 +86,8 @@
     "data_dir": {
       "type": "directory",
       "title": "Data folder",
-      "description": "Where captures, screenshots and the catalog are stored. Leave empty for ~/rs-scope-data.",
+      "description": "Where captures, screenshots and the catalog are stored. The default is created on first use. To use a new folder elsewhere, create it in Finder first (this picker cannot create folders), then choose it.",
+      "default": "${HOME}/rs-scope-data",
       "required": false
     }
   }
