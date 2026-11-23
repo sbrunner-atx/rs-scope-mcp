@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.2 (unreleased)
+## 0.1.2 (2026-11-23)
 
 Found by the new 40-check acceptance suite run end to end on an RTB2004:
 
@@ -16,6 +16,9 @@ Found by the new 40-check acceptance suite run end to end on an RTB2004:
 - Text previews use the low 8 bits of 9-bit UART words.
 - Skills: notes on self-checked masks, the Bode restore, incomplete frames and parallel glitches.
 - `scripts/acceptance_test.py`: 40 checks in five groups; real-capture regression fixtures.
+- scope-operating skill: the generator load note had the direction reversed (`HIGHz` into a
+  terminator reads half, `R50` into an open input reads double).
+- Docs: Field Guide PDF; API reference section 3 expanded with the bench findings above.
 
 ## 0.1.1
 
