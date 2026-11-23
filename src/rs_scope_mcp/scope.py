@@ -284,7 +284,14 @@ class Scope:
             fr["word_status"].append(st)
 
     # ------------------------------------------------------------------ history (segmented memory)
+    def _stop_for_history(self) -> None:
+        # history queries are rejected (-200) while the acquisition runs (bench-verified)
+        if self.q("ACQuire:STATe?").strip().upper().startswith("RUN"):
+            self.stop()
+            self.i.opc(10)
+
     def history(self, source: str = "CHANnel1") -> dict:
+        self._stop_for_history()
         avail = int(num(self.q("ACQuire:AVAilable?")) or 0)
         start, stop = (int(num(v) or 0) for v in self.qm([f"{source}:HISTory:STARt?", f"{source}:HISTory:STOP?"]))
         rel = [num(x) for x in self.q(f"{source}:HISTory:TSRelative:ALL?").split(",") if x.strip()]
@@ -292,6 +299,7 @@ class Scope:
 
     def select_segment(self, k: int, source: str = "CHANnel1") -> int:
         """Select a history segment (0 = newest). The scope clamps silently; returns the real one."""
+        self._stop_for_history()
         self.w(f"{source}:HISTory:CURRent {k}")
         return int(num(self.q(f"{source}:HISTory:CURRent?")) or 0)
 
@@ -306,7 +314,13 @@ class Scope:
                 errs = self.w(line)
                 if errs:
                     raise ScopeError(f"{line}: {errs}")
-        time.sleep(settle)
+        # a stopped record may not contain this source (e.g. a capture taken with the channel off):
+        # measure on a fresh acquisition (bench-verified failure mode)
+        if not self.q("ACQuire:STATe?").strip().upper().startswith("RUN"):
+            self.i.write("SINGle", wait=True, timeout=30)
+            time.sleep(min(settle, 0.3))
+        else:
+            time.sleep(settle)
         vals = self.qm([f"MEASurement{k}:RESult?" for k in range(1, len(types) + 1)])
         return {t: num(v) for t, v in zip(types, vals)}
 
@@ -421,6 +435,8 @@ class Scope:
             if self.q("ACQuire:STATe?").strip().upper() not in ("RUN", "RUNNING"):
                 break
         self.w("MASK:TEST PAUSe")
+        if keep_failed:
+            self.stop()  # freeze the stored failures for history()
         seconds = time.monotonic() - t0
         out = {"tested": tested, "failed": failed, "passed": tested - failed,
                "failure_rate": round(failed / tested, 6) if tested else None, "seconds": round(seconds, 1),
