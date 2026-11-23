@@ -9,7 +9,8 @@
   "notes": [
    "Reads back BPL while the Bode plot application is active (FW 03.000); BPL is not in the manual's value list.",
    "Applications are exclusive: in BPL mode, bus decode and other settings fail with -221 'Settings conflict'. Switch with DEV:MODE YT.",
-   "Leaving the Bode application turns the generator output off."
+   "Leaving the Bode application turns the generator output off.",
+   "The Bode application switches ACQuire:MEMory to LIM (75 kSa) and leaves it there; afterwards ACQ:MEM AUT is refused with -221 and only restoring a SYSTem:SET snapshot from before the sweep brings AUTO back. rs-scope-mcp saves one before every bode() and restores it when the mode leaves BPL."
   ]
  },
  {
@@ -201,7 +202,8 @@
  {
   "match": "^MASK:TEST$",
   "notes": [
-   "RUN sometimes answers -221 Settings conflict after timebase changes. MASK:STAT OFF, one SINGle, then MASK:STAT ON / MASK:CHCopy again clears it.",
+   "MASK:CHCopy switches ACQuire:TYPE to ENVelope; set ACQ:TYPE REFR before MASK:TEST RUN, otherwise the test runs on the accumulated envelope (bench-verified).",
+   "RUN can answer -221 Settings conflict; a fresh SINGle and RUN usually clears it. Never re-learn the mask from the signal under test.",
    "With noise on the signal, use TRIGger:A:EDGE:FILTer:HFReject ON so the edge trigger does not fire on the falling slope; otherwise the trace sits 180 degrees off the mask."
   ]
  },
@@ -229,6 +231,12 @@
   },
   "notes": [
    "The manual runs the parameter name and its values together (and spells SINusiod). SQUare with 100 % AM makes a hard-keyed carrier (bench-verified)."
+  ]
+ },
+ {
+  "match": "^MASK:CHCopy$",
+  "notes": [
+   "Switches ACQuire:TYPE to ENVelope (bench-verified on FW 03.000); switch back with ACQ:TYPE REFR before testing."
   ]
  }
 ]

@@ -174,3 +174,21 @@ def test_identify_uart_and_pwm():
     pwm = ((t % 0.02) < 0.0015).astype(np.uint8)   # 50 Hz, 1.5 ms
     p = an.identify_bus(_pod({2: pwm}, n), 0, 1e-4)
     assert p["guess"].startswith("PWM on D2") and "servo" in p["guess"]
+
+
+@pytest.mark.parametrize("name,guess,setup", [
+    ("i2c", "I2C", {"CLOCk:SOURce": "D0", "DATA:SOURce": "D1"}),
+    ("spi", "SPI", {"CLOCk:SOURce": "D0", "CS:SOURce": "D3", "CS:POLarity": "NEG"}),
+    ("uart", "UART", {"BAUDrate": 115200, "POLarity": "IDLH"}),
+    ("servo", "PWM on D0", {}),
+])
+def test_identify_on_real_rtb2004_captures(name, guess, setup):
+    """Short (75 kSa) records from the RTB2004 pattern generator, starting mid-transfer."""
+    import json as _json
+    from pathlib import Path
+    d = Path(__file__).parent / "data"
+    meta = _json.loads((d / "pods.json").read_text())[name]
+    r = an.identify_bus(np.load(d / f"pod1-{name}.npy"), meta["t0"], meta["dt"])
+    assert r["guess"].startswith(guess), r["guess"]
+    for k, v in setup.items():
+        assert r["decoder_setup"][k] == v

@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS artifacts (
 
 
 def _ascii(data: list) -> str:
-    return "".join(chr(b) if isinstance(b, int) and 32 <= b < 127 else "." for b in data)
+    return "".join(chr(b & 0xFF) if isinstance(b, int) and 32 <= (b & 0xFF) < 127 else "." for b in data)
 
 
 class Store:

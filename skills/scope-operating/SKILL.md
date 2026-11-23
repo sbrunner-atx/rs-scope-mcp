@@ -92,13 +92,18 @@ runs, other tools refuse; stop it first.
 
 FFT, Bode plot, XY and mask test each take over the screen (`DEVice:MODE`). In Bode mode, bus
 decode and many settings fail with `-221 Settings conflict`. `capture` and `history` switch back to
-YT when they need decodes; when a command fails with -221, check the mode first. Leaving the Bode
-application switches the generator output off.
+YT when they need decodes; when a command fails with -221, check the mode first.
+
+The Bode application changes the memory mode (to a 75 kSa limit), the channel scale and coupling,
+and the generator load. rs-scope-mcp saves the setup before every `bode` sweep and restores it when
+the scope leaves Bode mode, so measurements afterwards run on the setup from before the sweep.
 
 ## Pass/fail and rare faults
 
 - `mask(action="create", source="CH1", x_margin_div=0.05, y_margin_div=0.2)` learns a tolerance
-  envelope from the signal on screen. Show the known-good signal first.
+  envelope from the signal on screen and self-checks it against that signal; a `warning` means the
+  mask does not fit (fix trigger or timebase and create it again). Show the known-good signal first,
+  and never learn a mask from the signal you are about to judge.
 - `mask(action="test", acquisitions=1000, keep_failed=true)` counts failures; with `keep_failed`
   only failing acquisitions stay in segmented memory.
 - `history(action="harvest", sources=["CH1","BUS1"])` walks the stored segments and returns one

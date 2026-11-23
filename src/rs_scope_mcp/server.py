@@ -331,8 +331,17 @@ def capture(sources: list[str] | None = None, acquire: str = "single", points: s
     try:
         sc, st = _scope(), _store()
         sources = sources or ["CH1"]
-        if any(_parse_source(s)[0] == "bus" for s in sources):
+        kinds = {_parse_source(s)[0] for s in sources}
+        # Bode, XY and mask applications block logic and decode settings (-221)
+        if kinds & {"bus", "pod"} or sc.mode() in ("BPL", "XY"):
             sc.ensure_yt()
+        # decoding must be on before the acquisition, or that record is not decoded
+        enabled = []
+        for src in sources:
+            k, n = _parse_source(src)
+            if k == "bus" and sc.q(f"BUS{n}:STATe?").strip() not in ("1", "ON"):
+                sc.w(f"BUS{n}:STATe ON")
+                enabled.append(f"BUS{n}")
         t_acq = None
         if acquire == "single":
             t_acq = round(sc.single(), 3)
@@ -351,6 +360,8 @@ def capture(sources: list[str] | None = None, acquire: str = "single", points: s
                    "sources": results}
         if shot:
             summary["screenshot"] = shot
+        if enabled:
+            summary["note"] = f"decoding was off on {', '.join(enabled)}; switched it on before acquiring"
         st.set_summary(cid, summary)
         return {"ok": True, **summary,
                 "next": "data(action='series'|'edges'|'frames', capture_id=...) for details"}
@@ -536,7 +547,8 @@ def mask(action: str = "status", source: str = "CH1", x_margin_div: float = 0.1,
     try:
         sc, st = _scope(), _store()
         if action == "create":
-            return {"ok": True, **sc.mask_create(source, x_margin_div, y_margin_div)}
+            r = sc.mask_create(source, x_margin_div, y_margin_div)
+            return {"ok": "warning" not in r, **r}
         if action == "test":
             r = sc.mask_test(acquisitions, timeout_s, keep_failed, stop_on_failures)
             cid = st.new_capture("mask", note, _inst().idn.get("raw"), sc.settings())

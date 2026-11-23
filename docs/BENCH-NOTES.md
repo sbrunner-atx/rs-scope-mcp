@@ -82,3 +82,22 @@ Run through the MCP tool functions against the RTB2004, then the original setup 
 | `data identify` on SPI | CLK D0, MOSI D1, MISO D2, CS D3 | SPI, CS D3 active low, data D1/D2 (after detecting CS as the line that holds while the clock runs) |
 | `data identify` on 50 Hz pattern, duty 7.5 % | servo | PWM 50 Hz, 1.6 ms (the pattern generator's duty step), flagged servo/ESC |
 | `measure D0 FREQ, PPW, PDCY` | servo | 49.999 Hz, 1.600 ms, 8.0 % |
+
+## Round 6: acceptance suite (2026-11-23)
+
+`scripts/acceptance_test.py` drives the MCP server over stdio, as Claude Desktop does: 40 checks in five
+groups (foundation, analog, logic, mask, demo) plus restore. Running the groups back to back found
+state that one feature leaves for the next:
+
+| Finding | Fix |
+|---|---|
+| Mode changes (`DEV:MODE`, `SPEC`, `BPL:ENAB`, `MASK:STAT`) take about 1 s; commands sent meanwhile fail with -221 | The instrument layer waits with `*OPC?` after them |
+| The Bode application sets the memory to LIM (75 kSa) and keeps it; afterwards `ACQ:MEM AUT` is refused (-221), `MAN` works | `bode()` saves the complete setup first; leaving BPL mode (any way) restores it |
+| `MASK:CHCopy` switches the acquisition to ENVelope; after Bode it could copy an empty envelope | `mask create` builds the envelope itself, returns to REFResh and self-checks the new mask against the reference signal |
+| The old -221 recovery re-learned the mask from the signal under test, so a noisy signal passed | Never re-learn automatically; retry the start once, otherwise report |
+| `capture` enabled a bus decoder only after acquiring, so that record was not decoded | Decoders are switched on before the acquisition |
+| A stopped record may not contain the source (`measure` after a capture with the channel off) | `measure` takes one fresh single acquisition when stopped |
+| History queries are rejected while acquiring | `history` stops first; `mask test` freezes stored failures |
+| Short records starting mid-transfer fooled the idle-level test | Idle levels from the longest clock pause (clocked buses) or the level before the first edge |
+| Unclocked parallel decode catches pins mid-transition (15 -> 8 -> 0) | Expected; use the clocked parallel decoder when a clock exists |
+| The pattern generator's SPI pattern toggles chip select pseudo-randomly | Frames end mid-text with status INCL; correct decoder behavior |

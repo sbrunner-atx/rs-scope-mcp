@@ -65,6 +65,9 @@ GUARDS: list[Guard] = [
 ]
 
 
+MODE_CHANGES = {"DEVice:MODE", "SPECtrum[:STATe]", "BPLot:ENABle", "MASK:STATe", "DISPlay:MODE"}
+
+
 @dataclass
 class CommandResult:
     sent: str
@@ -184,8 +187,20 @@ class Instrument:
         if reason and not confirm:
             raise GuardedCommand(f"{line!r} is guarded: {reason}. Re-send with confirm=true.")
         self.transport.write(line)
-        if wait:
+        # application changes take ~1 s; commands sent meanwhile fail with -221 (bench-verified)
+        if wait or (r is not None and r.command.header in MODE_CHANGES):
             self.opc(timeout)
+        # The Bode application changes memory (LIMited, 75 kSa, and ACQ:MEM AUT is then refused with
+        # -221), channel scale and coupling, and the generator load. Leaving it restores the complete
+        # setup saved before the sweep (bench-verified as the only way back to AUTO memory).
+        if (r is not None and r.command.header == "DEVice:MODE" and r.args
+                and r.args[0].strip().upper() != "BPL" and getattr(self, "setup_before_bode", None)):
+            from .transport import encode_block
+            blob, self.setup_before_bode = self.setup_before_bode, None
+            self.transport.write("WGENerator:OUTPut OFF")
+            self.transport.write_raw(b"SYSTem:SET " + encode_block(blob) + b"\n")
+            self.opc(30)
+            self.drain_errors()
         res = CommandResult(sent=line, header=r.command.header if r else None,
                             warnings=r.warnings if r else [])
         if check_errors:

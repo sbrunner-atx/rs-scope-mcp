@@ -1,6 +1,23 @@
 # Changelog
 
-## 0.1.1 (unreleased)
+## 0.1.2 (unreleased)
+
+Found by the new 40-check acceptance suite run end to end on an RTB2004:
+
+- Mode changes (`DEV:MODE`, `SPEC`, `BPL:ENAB`, `MASK:STAT`, `DISP:MODE`) wait for completion;
+  commands sent during the switch failed with -221.
+- Leaving the Bode application restores the setup saved before the sweep (the Bode application
+  locks the memory to 75 kSa and changes channel and generator settings).
+- `mask create` builds the envelope itself, returns to normal acquisition and self-checks the mask;
+  the -221 recovery no longer re-learns the mask from the signal under test.
+- `capture` switches bus decoding on before acquiring.
+- `identify`: idle levels from the longest clock pause or the level before the first edge (short
+  records that start mid-transfer); chip select is the line that holds while the clock runs.
+- Text previews use the low 8 bits of 9-bit UART words.
+- Skills: notes on self-checked masks, the Bode restore, incomplete frames and parallel glitches.
+- `scripts/acceptance_test.py`: 40 checks in five groups; real-capture regression fixtures.
+
+## 0.1.1
 
 - `measure` takes a fresh single acquisition when the scope is stopped (a stopped record may not
   contain the source, for example after a capture with that channel off).

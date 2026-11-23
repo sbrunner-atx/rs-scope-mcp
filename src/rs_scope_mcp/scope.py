@@ -126,8 +126,15 @@ class Scope:
     def ensure_yt(self) -> None:
         """Leave FFT/Bode/XY applications; they block decode and other settings (-221)."""
         m = self.mode()
+        if m == "BPL":
+            # the instrument layer restores the setup saved before the Bode sweep on the way out
+            self.w("DEVice:MODE YT")
+            return
         if m == "FFT":
             self.w("SPECtrum OFF")
+        elif m == "MASK":
+            self.i.write("MASK:TEST STOP", check_errors=False)
+            self.w("MASK:STATe OFF")
         elif m not in ("YT", "ZOOM"):
             self.w("DEVice:MODE YT")
 
@@ -362,6 +369,8 @@ class Scope:
             errs = self.w(line)
             if errs:
                 raise ScopeError(f"{line}: {errs}")
+        if self.mode() != "BPL":
+            self.i.setup_before_bode = self.snapshot()
         self.i.write("BPLot:ENABle ON", confirm=confirm)
         t0 = time.monotonic()
         self.i.write("BPLot:STATe RUN", confirm=confirm)
@@ -378,32 +387,59 @@ class Scope:
 
     # ------------------------------------------------------------------ mask test
     def mask_create(self, source: str = "CH1", x_margin_div: float = 0.1, y_margin_div: float = 0.2,
-                    learn_s: float = 1.0) -> dict:
-        """Learn a tolerance mask from the signal on screen: its envelope plus margins (divisions)."""
+                    learn_s: float = 1.5, self_check: int = 30) -> dict:
+        """Learn a tolerance mask from the signal on screen: its envelope plus margins (divisions).
+
+        Accumulates the envelope itself, copies it, returns to normal acquisitions and then tests
+        `self_check` acquisitions of the same signal: a mask that does not fit the signal it was
+        learned from is reported instead of being returned as good (bench-verified failure mode
+        after the Bode application).
+        """
         self.ensure_yt()
-        # learn from a fresh acquisition at the current timebase (stale records cause -221 later)
         self.i.write("MASK:TEST STOP", check_errors=False)
         self.i.write("MASK:STATe OFF", check_errors=False)
+        self.w("ACQuire:TYPE REFResh")
         self.i.write("SINGle", wait=True, timeout=30)
         self.run()
-        time.sleep(learn_s)
-        for line in ("MASK:STATe ON", f"MASK:SOURce {source}", "MASK:CHCopy", f"MASK:XWIDth {x_margin_div}",
-                     f"MASK:YWIDth {y_margin_div}"):
+        for line in ("MASK:STATe ON", f"MASK:SOURce {source}"):
             errs = self.w(line)
             if errs:
                 raise ScopeError(f"{line}: {errs}")
-        self._mask = (source, x_margin_div, y_margin_div)
-        return {"source": source, "x_margin_div": x_margin_div, "y_margin_div": y_margin_div}
+        # build the envelope deliberately, then copy it (CHCopy uses the envelope waveform)
+        self.w("ACQuire:TYPE ENVelope")
+        time.sleep(learn_s)
+        for line in ("MASK:CHCopy", f"MASK:XWIDth {x_margin_div}", f"MASK:YWIDth {y_margin_div}"):
+            errs = self.w(line)
+            if errs:
+                raise ScopeError(f"{line}: {errs}")
+        self.i.opc(30)
+        self.w("ACQuire:TYPE REFResh")
+        out = {"source": source, "x_margin_div": x_margin_div, "y_margin_div": y_margin_div}
+        if self_check:
+            chk = self.mask_test(self_check, timeout=30, keep_failed=False)
+            out["self_check"] = {"tested": chk["tested"], "failed": chk["failed"]}
+            if chk["tested"] and chk["failed"] > 0.1 * chk["tested"]:
+                out["warning"] = (f"{chk['failed']} of {chk['tested']} acquisitions of the reference signal fail "
+                                  "this mask: it does not fit the signal on screen. Check trigger and timebase, "
+                                  "then create it again.")
+        return out
 
     def mask_start(self) -> None:
-        """MASK:TEST RUN, with one re-learn when the firmware reports -221 (seen after timebase changes)."""
+        """Start the test on normal (refresh) acquisitions.
+
+        Never re-learns the mask: re-learning from the signal under test would let a bad signal
+        define its own tolerance. On -221 it retries once after a fresh acquisition.
+        """
+        self.w("ACQuire:TYPE REFResh")
         errs = self.w("MASK:TEST RUN")
-        if errs and any(e.startswith("-221") for e in errs) and getattr(self, "_mask", None):
-            self.mask_create(*self._mask)
-            self.w("MASK:RESet:COUNter")
+        if errs and any(e.startswith("-221") for e in errs):
+            self.i.write("MASK:TEST STOP", check_errors=False)
+            self.i.write("SINGle", wait=True, timeout=30)
+            self.run()
+            time.sleep(0.5)
             errs = self.w("MASK:TEST RUN")
         if errs:
-            raise ScopeError(f"MASK:TEST RUN: {errs}")
+            raise ScopeError(f"MASK:TEST RUN refused {errs}; create the mask again from a known-good signal")
 
     def mask_test(self, acquisitions: int = 1000, timeout: float = 120.0, keep_failed: bool = True,
                   stop_on_failures: int = 0) -> dict:

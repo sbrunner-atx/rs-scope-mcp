@@ -83,7 +83,8 @@ def pod_edges(values: np.ndarray, t0: float, dt: float, first_channel: int = 0,
 
 
 def _ascii(data: list[int]) -> str:
-    return "".join(chr(b) if 32 <= b < 127 else "." for b in data if b is not None and 0 <= b < 256)
+    # UART words can be 9 bits: the text is in the low 8
+    return "".join(chr(b & 0xFF) if 32 <= (b & 0xFF) < 127 else "." for b in data if b is not None and b >= 0)
 
 
 def frames_summary(decoded: dict, preview: int = 5) -> dict:
@@ -259,7 +260,14 @@ def identify_bus(values: np.ndarray, t0: float, dt: float, first_channel: int = 
         unit = float(np.mean(w[w < 1.5 * wmin]))
         q = w / unit
         quantized = float(np.mean(np.abs(q - np.round(q)) < 0.2))
-        idle = int(b[0]) if b[0] == b[-1] else round(float(b.mean()))
+        # idle = the level held during the longest quiet stretch (robust when the record starts
+        # in the middle of a transfer)
+        bounds = np.concatenate(([0], idx + 1, [b.size]))
+        runs = np.diff(bounds)
+        if runs[0] >= 2 * float(np.median(runs)) and runs[0] >= 4:
+            idle = int(b[0])            # quiet before the first edge (a trigger on the activity)
+        else:
+            idle = int(b[bounds[int(np.argmax(runs))]])
         # bursts: gaps much longer than the typical pulse
         med = float(np.median(w))
         gaps = int(np.sum(w > 8 * med))
@@ -307,6 +315,14 @@ def identify_bus(values: np.ndarray, t0: float, dt: float, first_channel: int = 
     elif clocks:
         clk = max(clocks, key=lambda k: lines[k]["edges"])
         others = [k for k in names if k != clk]
+        # idle levels of a clocked bus: every line's level in the longest pause of the clock
+        cb = ((values >> lines[clk]["bit"]) & 1).astype(np.int8)
+        cidx = np.flatnonzero(np.diff(cb))
+        cbounds = np.concatenate(([0], cidx + 1, [cb.size]))
+        g = int(np.argmax(np.diff(cbounds)))
+        mid = (cbounds[g] + cbounds[g + 1]) // 2
+        for k in names:
+            lines[k]["idle"] = int((values[mid] >> lines[k]["bit"]) & 1)
         both_idle_high = lines[clk]["idle"] == 1 and all(lines[o]["idle"] == 1 for o in others)
         # chip select: a line that holds one level while the clock toggles (frames the bursts)
         clk_bit = lines[clk]["bit"]
@@ -315,11 +331,14 @@ def identify_bus(values: np.ndarray, t0: float, dt: float, first_channel: int = 
         for o in others:
             ob = ((values >> lines[o]["bit"]) & 1).astype(np.int8)
             during = ob[clk_idx]
-            active = 0 if lines[o]["idle"] == 1 else 1
-            frac = float(np.mean(during == active)) if clk_idx.size else 0.0
+            if not clk_idx.size:
+                continue
+            active = round(float(during.mean()))     # the level it holds while the clock runs
+            frac = float(np.mean(during == active))
             share = float(np.mean(ob == active))
-            if frac > 0.97 and share < 0.95 and lines[o]["edges"] < lines[clk]["edges"] / 2:
+            if frac > 0.97 and share < 0.999 and 2 <= lines[o]["edges"] < lines[clk]["edges"] / 2:
                 cs.append(o)
+                lines[o]["idle"] = 1 - active                 # idle is the inactive level
         cs.sort(key=lambda o: lines[o]["edges"])
         data = [o for o in others if o not in cs]
         f_clk = 1 / (2 * lines[clk]["median_pulse_s"])

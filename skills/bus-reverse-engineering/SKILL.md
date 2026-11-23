@@ -70,8 +70,14 @@ Set up the decoder from `decoder_setup`, trigger on the start of a transfer, and
 | I2C mostly NACK | Address scan of a powered-down device, or the lines swapped |
 | `-200` on decode queries | `BUS1:TYPE` is not the protocol you are querying |
 
-Bench note: the RTB2 pattern generator's UART decodes best as 115200 Bd, 9 bits, no parity, even
-though identification correctly reports 115200 Bd idle high; trying framing variants is normal.
+Bench notes:
+- The RTB2 pattern generator's UART decodes best as 115200 Bd, 9 bits, no parity, although
+  identification correctly reports 115200 Bd idle high; trying framing variants is normal.
+- Frames cut by the edges of the capture window show as incomplete (`INC`, `INCF`, `INCL`); widen
+  the timebase before concluding the bus is broken.
+- An unclocked parallel decode also catches lines mid-transition (a 4-bit counter shows 15, 8, 0
+  instead of 15, 0): use the clocked parallel decoder (`BUS1:TYPE CPAR`) when a clock or strobe
+  exists, or ignore one-sample glitch values.
 
 ## 4. Census: what is being said
 
