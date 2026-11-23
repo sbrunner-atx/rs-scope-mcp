@@ -16,3 +16,4 @@ scripts/
 docs/field-guide/
 docs/demo/
 docs/*.pdf
+.github/
