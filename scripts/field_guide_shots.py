@@ -6,7 +6,7 @@ scope's own setup (snapshotted with SYSTem:SET? at the start), drives the genera
 captures the screen as PNG, records the commands and the scope's readouts in a JSON
 sidecar, and the original setup is restored at the end, generator off.
 
-    uv run python scripts/field_guide_shots.py --host 192.168.97.130
+    uv run python scripts/field_guide_shots.py --host 192.168.1.50
     uv run python scripts/field_guide_shots.py --host ... --only 06-uart-decode
 """
 from __future__ import annotations
