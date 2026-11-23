@@ -13,6 +13,8 @@ First release. Supported and bench-tested: R&S RTB2 / RTB2000 series (RTB2004, f
   `scpi_block`, `screenshot`.
 - Local data store (SQLite catalog and sample files) with summaries first and drill-down on request.
 - Demo mode with analog and full (logic probe) scene sets.
+- `data` actions `envelope` (AM depth, keying rise/fall, crest factor) and `identify` (I2C, SPI, UART with baud, PWM/servo, clock from logic edges), bench-verified.
+- Skills: scope-operating, ham-bench, bus-reverse-engineering, embedded-bringup.
 - `rs-scope` command line for bench checks, the demo and screenshots; a registry-driven simulator.
 - Licensed under PolyForm Noncommercial 1.0.0: free for hobbyists; commercial licensing through
   Westlake Professionals.

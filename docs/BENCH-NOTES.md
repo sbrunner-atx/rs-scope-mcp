@@ -70,3 +70,15 @@ Run through the MCP tool functions against the RTB2004, then the original setup 
 | Mask conflict | `MASK:TEST RUN` intermittently -221 after timebase changes; off / single / re-learn clears it | Automatic retry in `mask_start` |
 | Trigger with noise | Edge trigger fires on the falling slope through noise; trace 180 degrees off the mask | `TRIG:A:EDGE:FILT:HFR ON` for noisy signals |
 | Demo | 11 scenes, full pass in 115 s, setup restored, uploaded waveform deleted | `docs/DEMO.md`, screenshots in `docs/demo/` |
+
+## Round 5: analysis for the skills (2026-11-23)
+
+| Check | Truth | Result |
+|---|---|---|
+| `data envelope` on generator AM | set 80 % | 74.6-75.3 % for every window size: the generator's real depth, not the method |
+| `data envelope` on 100 % square-wave AM | hard keying | rise and fall under one 20 us window; FFT shows sidebands every 400 Hz to +/-1.8 kHz |
+| `data identify` on pattern-generator UART | 115200 Bd | UART, 115200 Bd measured and standard, idle high |
+| `data identify` on I2C | SCL D0, SDA D1 | I2C, clock 301 kHz |
+| `data identify` on SPI | CLK D0, MOSI D1, MISO D2, CS D3 | SPI, CS D3 active low, data D1/D2 (after detecting CS as the line that holds while the clock runs) |
+| `data identify` on 50 Hz pattern, duty 7.5 % | servo | PWM 50 Hz, 1.6 ms (the pattern generator's duty step), flagged servo/ESC |
+| `measure D0 FREQ, PPW, PDCY` | servo | 49.999 Hz, 1.600 ms, 8.0 % |

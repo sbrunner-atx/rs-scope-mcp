@@ -55,7 +55,7 @@ Pre-alpha. In place and bench-tested:
 - **Foundation tools:** `connection`, `scpi_search`, `scpi_describe`, `scpi`, `scpi_block`, `screenshot`.
 - **Simulator** for tests and demos without hardware.
 
-Next: running it as a live connector in Claude, packaging (`.mcpb`, PyPI, MCP Registry), and skills.
+Next: publishing (GitHub, PyPI, MCP Registry) and the Field Guide.
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Quick start
@@ -95,6 +95,18 @@ uv run rs-scope --host <scope-ip> tree-diff          # compare the registry with
 
 Settings: `RS_SCOPE_HOST`, `RS_SCOPE_PORT` (5025), `RS_SCOPE_TIMEOUT` (10 s),
 `RS_SCOPE_DATA_DIR` (`~/rs-scope-data`, where screenshots and captures are stored).
+
+## Skills
+
+Four skills teach Claude how to work the bench with these tools (`skills/`, also as `.skill` files on
+the releases page):
+
+| Skill | For |
+|---|---|
+| **scope-operating** | Every session: leave the scope as found, safety, capture then analyze, trustworthy numbers |
+| **ham-bench** | Transmitter checks through attenuators: AM depth, CW keying and key clicks, SSB two-tone, harmonics, filter Bode sweeps |
+| **bus-reverse-engineering** | Unknown pins: levels, identify the protocol and rate, confirm with the decoder, census of addresses and commands |
+| **embedded-bringup** | Rails and ripple, sequencing and reset, clocks, PWM/servo/ESC, sensor buses, GPS/telemetry/RC links, intermittent faults, revision comparison |
 
 ## Documentation
 

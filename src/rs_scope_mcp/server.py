@@ -33,6 +33,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from mcp.server.fastmcp import FastMCP, Image
 
 from . import analysis as an
@@ -469,6 +470,10 @@ def data(action: str = "captures", capture_id: str | None = None, source: str | 
       "sessions" | "captures" (recent, current session) | "capture" (one capture: settings, summaries)
       "series": a window [t_start, t_end] of a stored series, min/max-decimated to max_points rows
       "edges": edge times per logic channel in a window (source e.g. "D0-D7")
+      "envelope": envelope of a stored analog series (source "CH1"): AM depth, 10-90 % rise and
+                  fall of keyed carriers, crest factor
+      "identify": guess what a stored logic pod carries (I2C, SPI, UART with baud, PWM/servo, clock)
+                  and the decoder setup to confirm it
       "frames": decoded frames, filtered by capture_id, bus, status ("not_ok" for errors), address,
                 contains (text or hex), segment, time window; paged with offset/limit
       "sql": a read-only SELECT over the catalog (tables: sessions, captures, series, frames,
@@ -495,6 +500,16 @@ def data(action: str = "captures", capture_id: str | None = None, source: str | 
             first = 8 if (source or "").upper().startswith("D8") else first
             return {"ok": True, **an.pod_edges(arr[i0:i1], meta["t0"] + i0 * meta["dt"], meta["dt"], first,
                                                max_edges=min(limit, 200))}
+        if action == "envelope":
+            meta, arr = st.series(capture_id or "", source or "CH1")
+            i0 = 0 if t_start is None else max(0, int((t_start - meta["t0"]) / meta["dt"]))
+            i1 = meta["n"] if t_end is None else min(meta["n"], int((t_end - meta["t0"]) / meta["dt"]) + 1)
+            return {"ok": True, "source": source or "CH1", **an.envelope(np.asarray(arr[i0:i1]), meta["dt"])}
+        if action == "identify":
+            meta, arr = st.series(capture_id or "", source or "D0-D7")
+            first = 8 if (source or "").upper().startswith("D8") else 0
+            return {"ok": True, "source": source or "D0-D7",
+                    **an.identify_bus(np.asarray(arr), meta["t0"], meta["dt"], first)}
         if action == "frames":
             return {"ok": True, **st.frames(capture_id, bus, status, address, contains, t_start, t_end, segment,
                                             offset, limit)}

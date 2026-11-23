@@ -210,5 +210,25 @@
   "notes": [
    "FAILED keeps only the failing acquisitions in the history, so they can be examined afterwards (bench-verified)."
   ]
+ },
+ {
+  "match": "^WGENerator:MODulation:FUNCtion$",
+  "replace": {
+   "parameters": [
+    {
+     "name": "<ModulationFunction>",
+     "enum": [
+      "SINusoid",
+      "SQUare",
+      "TRIangle",
+      "RAMP"
+     ]
+    }
+   ],
+   "signature": "<ModulationFunction>"
+  },
+  "notes": [
+   "The manual runs the parameter name and its values together (and spells SINusiod). SQUare with 100 % AM makes a hard-keyed carrier (bench-verified)."
+  ]
  }
 ]

@@ -136,3 +136,41 @@ def test_demo_tool_guarded_blocks_other_tools_and_restores(srv):
         D.SCENES[:] = orig
         for s in orig:
             s.settle = settles[s.id]
+
+
+def test_envelope_am_depth_and_keying():
+    dt = 1e-7
+    t = np.arange(200000) * dt                     # 20 ms
+    carrier = np.sin(2 * np.pi * 100e3 * t)
+    am = (1 + 0.8 * np.sin(2 * np.pi * 1e3 * t)) * carrier
+    e = an.envelope(am.astype(np.float32), dt)
+    assert abs(e["am_depth"] - 0.8) < 0.03
+    key = np.clip((t - 0.005) / 0.002, 0, 1)       # 2 ms linear key-down ramp
+    e2 = an.envelope((key * carrier).astype(np.float32), dt, carrier_hz=100e3)
+    assert abs(e2["rise_10_90_s"] - 0.0016) < 0.0003
+
+
+def _pod(lines: dict, n: int) -> np.ndarray:
+    out = np.zeros(n, dtype=np.uint8)
+    for bit, arr in lines.items():
+        out |= (arr.astype(np.uint8) & 1) << bit
+    return out
+
+
+def test_identify_uart_and_pwm():
+    dt, n = 1e-6, 20000
+    bit = round(1 / 115200 / dt * 100) / 100  # samples per bit (fractional)
+    line = np.ones(n, dtype=np.uint8)
+    pos = 100.0
+    for byte in b"*idn?\n" * 3:
+        bits = [0] + [(byte >> i) & 1 for i in range(8)] + [1]
+        for b in bits:
+            line[int(pos):int(pos + bit)] = b
+            pos += bit
+        pos += 3 * bit
+    g = an.identify_bus(_pod({0: line}, n), 0, dt)
+    assert g["guess"] == "UART" and g["baud_standard"] == 115200
+    t = np.arange(n) * 1e-4                        # 2 s at 100 us
+    pwm = ((t % 0.02) < 0.0015).astype(np.uint8)   # 50 Hz, 1.5 ms
+    p = an.identify_bus(_pod({2: pwm}, n), 0, 1e-4)
+    assert p["guess"].startswith("PWM on D2") and "servo" in p["guess"]
