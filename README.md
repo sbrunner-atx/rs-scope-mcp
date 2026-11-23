@@ -51,12 +51,12 @@ Pre-alpha. In place and bench-tested:
   needed.
 - **Pass/fail testing and demo mode:** `mask` learns a tolerance envelope from a good signal and
   counts failures (keeping only the failing acquisitions for analysis); `demo` plays a looping show
-  of what the scope can do, analog only or with the logic probe ([docs/DEMO.md](docs/DEMO.md)).
+  of what the scope can do, analog only or with the logic probe ([docs/DEMO.md](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/docs/DEMO.md)).
 - **Foundation tools:** `connection`, `scpi_search`, `scpi_describe`, `scpi`, `scpi_block`, `screenshot`.
 - **Simulator** for tests and demos without hardware.
 
 Next: publishing (GitHub, PyPI, MCP Registry) and the Field Guide.
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+See [docs/ARCHITECTURE.md](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/docs/ARCHITECTURE.md).
 
 ## Quick start
 
@@ -110,12 +110,12 @@ the releases page):
 
 ## Documentation
 
-- [Demo mode](docs/DEMO.md): wiring for the analog and the full demo, and every scene.
-- [SCPI API reference](docs/rs-scope-api.md) ([PDF](docs/rs-scope-api.pdf)): every command, with the
+- [Demo mode](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/docs/DEMO.md): wiring for the analog and the full demo, and every scene.
+- [SCPI API reference](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/docs/rs-scope-api.md) ([PDF](https://github.com/sbrunner-atx/rs-scope-mcp/raw/main/docs/rs-scope-api.pdf)): every command, with the
   bench-verified behavior the manual does not mention.
-- [Architecture](docs/ARCHITECTURE.md): the layer stack, the data store and the context strategy.
-- [Bench notes](docs/BENCH-NOTES.md): what was measured on the RTB2004.
-- [Field Guide screenshots](docs/field-guide/screenshots/): captured by `scripts/field_guide_shots.py`.
+- [Architecture](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/docs/ARCHITECTURE.md): the layer stack, the data store and the context strategy.
+- [Bench notes](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/docs/BENCH-NOTES.md): what was measured on the RTB2004.
+- [Field Guide screenshots](https://github.com/sbrunner-atx/rs-scope-mcp/tree/main/docs/field-guide/screenshots/): captured by `scripts/field_guide_shots.py`.
 
 The command registry is generated from your own copy of the R&S RTB2 user manual:
 
@@ -127,11 +127,11 @@ uv run python scripts/gen_api_docs.py
 ## License: free for hobbyists, licensed for business
 
 **Free for hobbyists.** Personal use, amateur radio, education and nonprofit use are free under the
-[PolyForm Noncommercial License 1.0.0](LICENSE). The source is open to read, change and share.
+[PolyForm Noncommercial License 1.0.0](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/LICENSE). The source is open to read, change and share.
 
 **Commercial use needs a license.** Any use by or for a business, including internal use on a
 company test bench, needs a commercial license. Support for more instruments, custom skills and
-integrations, and support plans are available too. See [COMMERCIAL.md](COMMERCIAL.md), and buy
+integrations, and support plans are available too. See [COMMERCIAL.md](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/COMMERCIAL.md), and buy
 through **Westlake Professionals**: <https://westlakeprofessionals.com>.
 
 Paid work is what keeps the free version going.

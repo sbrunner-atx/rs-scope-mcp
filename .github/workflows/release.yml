@@ -1,0 +1,74 @@
+name: Release
+
+# Publishes the sdist + wheel to PyPI. Fires when a GitHub Release is published
+# (`gh release create vX.Y.Z`), or by hand from the Actions tab / `gh workflow run`.
+# The release tag's version must match pyproject.toml.
+#
+# Auth: PyPI Trusted Publishing (OIDC), no stored token. The publisher is registered
+# on pypi.org for this repository, workflow release.yml, environment release.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check tag matches pyproject version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          v=$(python3 -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          test "v$v" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != v$v"; exit 1; }
+
+      - name: Build sdist + wheel
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  # Builds the Claude Desktop extension (.mcpb) and the skill files and attaches them
+  # to the release that triggered this run. The ae5vg.com Downloads page reads the
+  # asset list from the `releases/latest` API, so a release with no asset shows nothing.
+  bundle:
+    if: ${{ github.event_name == 'release' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # upload a release asset
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Check the tag matches manifest.json, pyproject.toml and server.json
+        if: ${{ !github.event.release.prerelease }}
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          manifest=$(python3 -c 'import json;print(json.load(open("manifest.json"))["version"])')
+          pyproject=$(python3 -c 'import tomllib;print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')
+          registry=$(python3 -c 'import json;d=json.load(open("server.json"));print(d["version"],d["packages"][0]["version"])')
+          echo "tag=$tag manifest=$manifest pyproject=$pyproject server.json=$registry"
+          test "$tag" = "$manifest"
+          test "$tag" = "$pyproject"
+          for v in $registry; do test "$tag" = "$v" || exit 1; done
+      - name: Build the desktop extension
+        run: npx --yes @anthropic-ai/mcpb pack
+      - name: Zip each operating skill
+        # A .mcpb does not install its skills, so each skill is also a download of its own.
+        run: (cd skills && for s in */; do s="${s%/}"; zip -qr "../$s.skill" "$s" -x '*.DS_Store'; done)
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" ./*.mcpb ./*.skill --clobber
