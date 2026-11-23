@@ -7,10 +7,10 @@ embedded/drone development).
 
 ```
  L7  Skills            ham-bench · reverse-engineering · embedded/drone      (intent → plan)
- L6  MCP tools         grouped task tools + scpi escape hatch                (server.py)
- L5  Context engine    summaries, drill-down queries, token budgets          (context.py)
- L4  Data store        SQLite catalog + raw sample files, per task session   (store.py)
- L3  Subsystems        typed drivers: capture, waveform, logic, decode, bode (subsys/*.py)
+ L6  MCP tools         task tools + the complete SCPI foundation             (server.py)     ✅
+ L5  Context engine    summaries, drill-down queries, token budgets          (analysis.py)   ✅
+ L4  Data store        SQLite catalog + numpy sample files, per task session (store.py)      ✅
+ L3  Subsystems        capture, waveform, logic, decode, history, FFT, Bode  (scope.py)      ✅
  L2  Instrument        validation, error queue, *OPC?, batching, guards      (instrument.py) ✅
  L1  Registry          958 headers from the manual, resolve/validate/search  (registry.py)   ✅
  L0  Transport         raw SCPI socket :5025, IEEE 488.2 blocks              (transport.py)  ✅
@@ -49,7 +49,7 @@ Bode sweep start (drives the generator), `*RST`/`SYST:PRES`, `*CAL?`/`CAL`, file
 delete/move/overwrite, `SYST:COMM:*` (can drop the connection), firmware update, date/time/name,
 education-mode lock. Batches are checked as a whole: nothing is sent if any line is blocked.
 
-## L3 Subsystems (next)
+## L3 Subsystems (done: `scope.py`)
 Typed drivers on top of the registry, each returning plain Python data:
 
 | module | does |
@@ -67,7 +67,7 @@ Typed drivers on top of the registry, each returning plain Python data:
 | `generator` | B6 function/arbitrary/pattern generator (guarded) |
 | `files` | MMEM catalog, download/upload, screenshot |
 
-## L4 Data store (next)
+## L4 Data store (done: `store.py`)
 Everything harvested lands locally first; Claude only sees what it asks for.
 
 ```
@@ -88,7 +88,7 @@ protocol, segment, index, start, stop, status, address/id, data hex, ascii, extr
 `measurements` (capture, type, source, value, avg/min/max/stddev, count), `screenshots`,
 `notes`.
 
-## L5 Context engine (next)
+## L5 Context engine (done: `analysis.py` + the `data` tool)
 The rule: **summaries up, details on request, always with counts and pointers.**
 * Every harvest returns a compact summary (≈ ≤2 k tokens): per series min/max/mean/RMS,
   dominant frequency, edge count, clipping flags; per bus frame count, error frames,
@@ -99,9 +99,9 @@ The rule: **summaries up, details on request, always with counts and pointers.**
 * Sessions tag data with the task's goal so later prompts retrieve by task, not by time.
 
 ## L6 MCP tools
-Foundation (done): `connection`, `scpi_search`, `scpi_describe`, `scpi`, `scpi_block`,
-`screenshot`. Task groups (next): `setup`, `capture`, `waveform`, `logic`, `decode`,
-`measure`, `spectrum`, `bode`, `history`, `generator`, `files`, `store`.
+Foundation: `connection`, `scpi_search`, `scpi_describe`, `scpi`, `scpi_block`, `screenshot`.
+Task tools: `session`, `capture`, `measure`, `spectrum`, `bode`, `history`, `data`, `setup`.
+Generator and file operations go through `scpi` (guarded) for now.
 
 ## L7 Skills (later)
 * **Ham bench:** CW keying shape, SSB two-tone, AM trapezoid, filter Bode (crystal/IF/audio),

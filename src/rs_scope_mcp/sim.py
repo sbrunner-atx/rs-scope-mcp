@@ -15,7 +15,10 @@ screenshots (PNG), the Bode plot arrays, and *OPC?.
 from __future__ import annotations
 
 import argparse
+import base64
+import json
 import math
+import re
 import socketserver
 import struct
 import threading
@@ -36,6 +39,10 @@ I2C_FRAMES = [
     {"address": 0x68 << 1, "data": [0x3B], "start": 0.1e-4, "stop": 0.4e-4},  # IMU register read
 ]
 UART_TEXT = b"$GPGGA,AE5VG*47\r\n"
+SPI_FRAMES = [b"Rohde&Schwarz\x00", b"RTB2004\x00"]
+# bus types (short form as the scope reports it) -> the query prefix that is valid for it
+BUS_QUERY = {"I2C": "I2C", "SPI": "SPI", "SSPI": "SPI", "UART": "UART", "CAN": "CAN", "LIN": "LIN",
+             "PAR": "PARallel", "CPAR": "CPARallel"}
 
 
 class SimState:
@@ -44,6 +51,9 @@ class SimState:
         self.values: dict[tuple, str] = {}
         self.errors: deque[str] = deque(maxlen=32)
         self.lock = threading.Lock()
+        self.segments = 1
+        self.current_segment = 0
+        self.acq_state = "RUN"
         self.reset()
 
     def reset(self) -> None:
@@ -135,6 +145,30 @@ class Handler(socketserver.StreamRequestHandler):
                 return st.errors.popleft() if st.errors else '0,"No error"'
             if up in ("SYST:TREE?", "SYSTEM:TREE?"):
                 return ";".join(sorted({h for c in st.reg.commands for h in c.all_headers}))
+            if up in ("SYST:SET?", "SYSTEM:SET?"):
+                blob = json.dumps([[list(k[0:1]) + [list(map(list, k[1]))], v] for k, v in st.values.items()])
+                return encode_block(base64.b64encode(blob.encode()))
+            if up in ("SYST:SET", "SYSTEM:SET"):
+                arg = cmd.split(None, 1)[1].strip() if " " in cmd else ""
+                try:
+                    payload = arg[2 + int(arg[1]):]
+                    items = json.loads(base64.b64decode(payload))
+                    st.values = {(k[0], tuple(tuple(x) for x in k[1])): v for k, v in items}
+                except Exception:  # noqa: BLE001
+                    st.push_error(-161, "Invalid block data")
+                return None
+            if up in ("SING", "SINGLE", "RUNS", "RUNSINGLE"):
+                st.acq_state = "COMP"
+                if up.startswith("RUNS"):
+                    n = int(parse_number(st.get("ACQ:NSIN:COUN", "1")) or 1)
+                    st.segments, st.current_segment = max(1, n), 0
+                return None
+            if up == "RUN":
+                st.acq_state = "RUN"
+                return None
+            if up == "STOP":
+                st.acq_state = "STOP"
+                return None
 
             r = st.reg.resolve(cmd)
             if r is None:
@@ -144,10 +178,29 @@ class Handler(socketserver.StreamRequestHandler):
                 code = -114 if any("suffix" in e for e in r.errors) else -109
                 st.push_error(code, r.errors[0])
                 return None
-            if r.warnings:
+            if r.warnings and r.command.kind != "undocumented":
                 st.push_error(-224, "Illegal parameter value")
                 return None
             hdr = r.command.header
+            # like the real scope: a decode query for another bus type is rejected silently
+            m = re.match(r"^BUS<b>:([A-Za-z0-9]+):(?:RX:|TX:)?(FRAM|FCO)", r.header_matched)
+            if m:
+                bus_type = st.get(f"BUS{r.suffixes.get('b', 1)}:TYPE", "PAR").upper()
+                if BUS_QUERY.get(bus_type, bus_type).upper() != m.group(1).upper():
+                    st.push_error(-200, "Execution error")
+                    return None
+            # couplings the real instrument applies on its own
+            if not r.is_query and r.args:
+                a0 = r.args[0].strip().upper()
+                if hdr == "SPECtrum[:STATe]":
+                    st.set("DEV:MODE", "FFT" if a0 in ("ON", "1") else "YT")
+                if hdr == "BPLot:ENABle":
+                    st.set("DEV:MODE", "BPL" if a0 in ("ON", "1") else "YT")
+                    if a0 in ("ON", "1"):
+                        st.set("WGEN:OUTP:LOAD", "R50")
+                leaving_bode = st.get("DEV:MODE?", "YT").upper() == "BPL"
+                if hdr == "DEVice:MODE" and a0 != "BPL" and leaving_bode:
+                    st.set("WGEN:OUTP", "OFF")  # leaving the Bode application turns the generator off
             data = self.data_query(r.header_matched, r)
             if data is not None:
                 return data
@@ -209,7 +262,7 @@ class Handler(socketserver.StreamRequestHandler):
         x0, x1, n = self.timebase()
         if hdr == "CHANnel<m>:DATA?":
             return self.encode_values(self.analog(s.get("m", 1)))
-        if hdr in ("CHANnel<m>:DATA:HEADer?", "DIGital<m>:DATA:HEADer?"):
+        if hdr in ("CHANnel<m>:DATA:HEADer?", "DIGital<m>:DATA:HEADer?", "LOGic<p>:DATA:HEADer?"):
             return f"{x0:.4E},{x1:.4E},{n},1"
         if hdr == "CHANnel<m>:DATA:POINts" and r.is_query:
             return str(n)
@@ -226,15 +279,68 @@ class Handler(socketserver.StreamRequestHandler):
             if hdr.startswith("DIG"):
                 return self.encode_values([float(b) for b in self.logic(s.get("m", 1))])
             pod = s.get("p", 1)
-            words = []
-            for i in range(n):
-                w = 0
-                for b in range(8):
-                    w |= self.logic(b + 8 * (pod - 1))[i] << b
-                words.append(float(w))
-            return self.encode_values(words)
+            bits = [self.logic(b + 8 * (pod - 1)) for b in range(8)]
+            words = [sum(bits[b][i] << b for b in range(8)) for i in range(n)]
+            kind, _ = self.fmt()
+            if kind == "UINT":  # pods are raw bitmasks, one byte per sample (bench-verified)
+                return encode_block(bytes(words))
+            return self.encode_values([float(w) for w in words])
         if hdr == "HCOPy:DATA?":
             return encode_block(tiny_png())
+        st = self.state
+        if hdr == "ACQuire:STATe" and r.is_query:
+            return st.acq_state
+        if hdr == "ACQuire:AVAilable?":
+            return str(st.segments)
+        hq = hdr.rstrip("?")
+        if hq.endswith(":HISTory:STARt") and r.is_query:
+            return str(-(st.segments - 1))
+        if hq.endswith(":HISTory:STOP") and r.is_query:
+            return "0"
+        if hdr.endswith(":HISTory:CURRent"):
+            if r.is_query:
+                return str(st.current_segment)
+            k = int(parse_number(r.args[0]) or 0) if r.args else 0
+            st.current_segment = max(-(st.segments - 1), min(0, k))  # clamps silently, like the scope
+            return None
+        if hdr.endswith(":HISTory:TSRelative:ALL?"):
+            return ",".join(f"{-0.25 * k:.6E}" for k in range(st.segments))
+        if hdr.endswith(":HISTory:TSRelative?"):
+            return f"{0.25 * st.current_segment:.6E}"
+        if hdr.endswith(":HISTory:TSABsolute:ALL?"):
+            return ",".join(f"12,0,{30 - 0.25 * k:.6E}" for k in range(st.segments))
+        if hdr.endswith(":HISTory:TSDate:ALL?"):
+            return ",".join("2026,11,23" for _ in range(st.segments))
+        if hdr == "BPLot:STATe" and r.is_query:
+            return "STOP"
+        if hdr.startswith("SPECtrum:WAVeform:SPECtrum:DATA"):
+            f0, f1, npts = 0.0, 2e5, 400
+            freqs = [f0 + (f1 - f0) * i / (npts - 1) for i in range(npts)]
+            if hdr.endswith("HEADer?"):
+                return f"{f0:.6E},{f1:.6E},{npts},1"
+            if hdr.endswith("DATA?"):
+                # square wave: odd harmonics of 10 kHz, -20 dBV at the fundamental
+                mags = []
+                for f in freqs:
+                    v = -100.0
+                    for h in range(1, 20, 2):
+                        if abs(f - 1e4 * h) < 300:
+                            v = max(v, -20 - 20 * math.log10(h))
+                    mags.append(v)
+                return self.encode_values(mags)
+        if hdr.startswith(("BUS<b>:SPI:FCOunt", "BUS<b>:SSPI:FCOunt")):
+            return str(len(SPI_FRAMES))
+        if hdr.startswith("BUS<b>:SPI:FRAMe<n>"):
+            n = s.get("n", 1)
+            if not 1 <= n <= len(SPI_FRAMES):
+                st.push_error(-222, "Data out of range;frame index")
+                return None
+            fr = SPI_FRAMES[n - 1]
+            tail = hdr.split("FRAMe<n>:")[1]
+            return {"STATus?": "OK", "STARt?": f"{-1e-4 + 6e-4 * (n - 1):.6E}",
+                    "STOP?": f"{-1e-4 + 6e-4 * (n - 1) + 4e-4:.6E}", "WCOunt?": str(len(fr)),
+                    "DATA:MOSI?": ",".join(str(b) for b in fr),
+                    "DATA:MISO?": ",".join(str(b) for b in b"\x00" + fr[:-1])}.get(tail, "0")
         if hdr == "ACQuire:SRATe?":
             return f"{n / (x1 - x0):.4E}"
         if hdr == "MEASurement<m>:RESult[:ACTual]?":

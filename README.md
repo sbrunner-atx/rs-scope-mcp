@@ -43,10 +43,16 @@ Pre-alpha. In place and bench-tested:
   the error queue read after every write, batching, and full-setup snapshot and restore.
 - **Safety gate:** generator and pattern outputs, Bode sweeps, resets, self-alignment, file deletion and
   network settings need explicit confirmation.
-- **MCP tools:** `connection`, `scpi_search`, `scpi_describe`, `scpi`, `scpi_block`, `screenshot`.
+- **Task tools:** `capture` (acquire and harvest analog channels, logic pods and bus decodes in one
+  call), `measure`, `spectrum`, `bode`, `history` (walk segmented memory), `data` (drill into stored
+  samples, edges and frames, or read-only SQL), `setup` (show, save, restore) and `session`.
+- **Local data store:** every capture is kept in `RS_SCOPE_DATA_DIR` (SQLite catalog plus sample
+  files and the scope's own setup), so Claude gets a compact summary and asks for details only when
+  needed.
+- **Foundation tools:** `connection`, `scpi_search`, `scpi_describe`, `scpi`, `scpi_block`, `screenshot`.
 - **Simulator** for tests and demos without hardware.
 
-Next: typed subsystems (capture, decode, logic, Bode, history), the local data store, and skills.
+Next: running it as a live connector in Claude, packaging (`.mcpb`, PyPI, MCP Registry), and skills.
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Quick start

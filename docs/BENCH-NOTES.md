@@ -45,3 +45,17 @@ The instrument also announces itself over mDNS as `_scpi-raw._tcp` ("Rohde&Schwa
 | Segment count | `ACQ:NSIN:COUN` max depends on record length (16 here; 40 and 100 rejected) | Read the limit, do not assume |
 | Logic transfer | `DIG0:DATA?` 7.5 MSa UINT,8 in 0.65 s; `LOG1:DATA?` pod (bit n = Dn) 7.5 MSa UINT,8 in 0.9 s; with UINT,16 the pod value sits in the high byte | Store logic as pod bytes (8 channels per byte) |
 | Generator load | `WGEN:OUTP:LOAD` is amplitude compensation, not a relay: 1 Vpp set → 1.030 Vpp at the 50 ohm terminator with R50 | Field Guide wiring note; Bode leaves it at R50 |
+
+## Round 3: task tools end to end (2026-11-23)
+
+Run through the MCP tool functions against the RTB2004, then the original setup restored with `setup restore`.
+
+| Tool | Result |
+|---|---|
+| `capture` CH1 + POD1 + BUS1 | 4.3 s total: SINGle 0.39 s, CH1 7.5 MSa (999.9 Hz, 1.039 Vpp), D0-D7 7.5 MSa with edge statistics, both I2C frames (`*idn?`, `Rohde&Schwarz - RTB2004`) |
+| `data` frames / edges / series | Frame table, an edge window, and a 6-row min/max view of 7.5 MSa, all from the local store |
+| `measure` | FREQ 1000.6 Hz, PEAK 1.032 V, RMS 0.351 V |
+| `spectrum` 0-200 kHz | Odd harmonics of the 10 kHz square wave, RBW 1 kHz, noise floor -50 dBV |
+| `bode` 100 Hz-1 MHz | 41 points in 6.8 s, flat 0 dB (loopback), load R50 |
+| `history` | 9 segments available, 8 harvested with CH1 and I2C each; SQL shows 2/2 OK frames in every segment |
+| `setup` save / restore | Restored without errors; generator off, pattern generator back to its original state |
