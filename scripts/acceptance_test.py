@@ -5,11 +5,11 @@ Wiring: Aux Out -> 50 ohm terminator -> CH1; pattern generator P0..P3 -> logic p
     RS_SCOPE_EXT_DIR=<installed extension folder> ... to test an installed .mcpb
 The setup is saved first and restored at the end."""
 import asyncio
+
 # ruff: noqa: SIM117, SIM115
 import json
 import os
 import sys
-
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
