@@ -1,0 +1,195 @@
+[
+ {
+  "match": "^DEVice:MODE$",
+  "enum_add": {
+   "0": [
+    "BPL"
+   ]
+  },
+  "notes": [
+   "Reads back BPL while the Bode plot application is active (FW 03.000); BPL is not in the manual's value list.",
+   "Applications are exclusive: in BPL mode, bus decode and other settings fail with -221 'Settings conflict'. Switch with DEV:MODE YT.",
+   "Leaving the Bode application turns the generator output off."
+  ]
+ },
+ {
+  "match": "^TRIGger:A:HYSTeresis$",
+  "absent_in": [
+   "03.000"
+  ],
+  "notes": [
+   "Returns -113 'Undefined header' on FW 03.000."
+  ]
+ },
+ {
+  "match": "^BUS<b>:(I2C|SPI|SSPI|UART|CAN|LIN|PARallel|CPARallel):(.*FRAM|.*FCOunt)",
+  "notes": [
+   "Only reliable when BUS<b>:TYPE matches this protocol. FW 03.000 is inconsistent: I2C queries on an SSPI bus give -200 'Execution error' and no response, SPI queries on a UART bus return empty data with no error. Check BUS<b>:TYPE? first.",
+   "Frame numbers <n> start at 1; frame count from ...:FCOunt?. Batched field reads run at about 180-230 frames/s (5-6 fields per frame)."
+  ]
+ },
+ {
+  "match": "^(BUS<b>:UART|BUS<b>:I2C).*:STAT(e|us)\\?$",
+  "notes": [
+   "Observed values include OK and INS (insufficient: frame not fully inside the acquisition)."
+  ]
+ },
+ {
+  "match": "^ACQuire:NSINgle:COUNt$",
+  "notes": [
+   "The history may hold fewer segments than requested (50 requested -> 40 available at 10 kSa); read ACQuire:AVAilable?.",
+   "The maximum depends on the record length: 40 and 100 were rejected (-222) where 16 was the limit."
+  ]
+ },
+ {
+  "match": ":HISTory:CURRent$",
+  "notes": [
+   "Out-of-range segment indexes are clamped silently (no error). Valid range: HISTory:STARt? .. HISTory:STOP? (0 = newest)."
+  ]
+ },
+ {
+  "match": ":HISTory:TSABsolute:ALL\\?$",
+  "notes": [
+   "Returns hour,minute,second triples per segment; dates come from ...:TSDate:ALL? as year,month,day triples."
+  ]
+ },
+ {
+  "match": "^(CHANnel<m>|LOGic<p>|DIGital<m>):DATA:POINts$",
+  "notes": [
+   "MAX/DMAX only take effect while stopped. At 6 MSa, REAL,32 transfers 24 MB in ~1.4 s; UINT,16 is lossless for the 10-bit ADC at half the size."
+  ]
+ },
+ {
+  "match": "^(CHANnel<m>|CALCulate:MATH<m>|REFCurve<m>|LOGic<p>|DIGital<m>):DATA\\?$",
+  "notes": [
+   "Volts = YORigin + YINCrement * code for UINT formats (verified FW 03.000). FORMat is not part of SYSTem:SET."
+  ]
+ },
+ {
+  "match": "^MEASurement<m>:STATistics:VALue:ALL\\?$",
+  "notes": [
+   "Returns the full statistics buffer (~1000 values). 9.91E+37 means 'no value' (NaN)."
+  ]
+ },
+ {
+  "match": "^MEASurement<m>:RESult",
+  "notes": [
+   "9.91E+37 means 'no value' (NaN)."
+  ]
+ },
+ {
+  "match": "^SYSTem:SET$",
+  "notes": [
+   "Query returns the complete setup as a ~5 kB block; sending it back (SYST:SET #<block>) restores it in ~1 s. Does not include FORMat."
+  ]
+ },
+ {
+  "match": "^HCOPy:DATA\\?$",
+  "notes": [
+   "Present although missing from SYSTem:TREE? on FW 03.000. PNG 1280x824, ~45 kB, ~0.7 s."
+  ]
+ },
+ {
+  "match": "^BPLot:(FREQuency|GAIN|PHASe):DATA\\?$",
+  "notes": [
+   "Honours FORMat; ASCii rounds to 4 significant digits, use REAL,32. Poll BPLot:STATe? until STOP after a RUN."
+  ]
+ },
+ {
+  "match": "^LOGic<p>:THReshold:UDLevel$",
+  "replace": {
+   "header": "LOGic<p>:THReshold",
+   "aliases": [],
+   "signature": "<ThresholdMode>"
+  },
+  "notes": [
+   "The manual lists THReshold and THReshold:UDLevel as one command. On FW 03.000 THReshold takes the mode (TTL|ECL|CMOS|USER) and THReshold:UDLevel takes the user level in volts."
+  ]
+ },
+ {
+  "add_command": {
+   "header": "LOGic<p>:THReshold:UDLevel<n>",
+   "kind": "set_query",
+   "signature": "<Level>",
+   "summary": "User-defined threshold level of the logic pod, used when LOGic<p>:THReshold is USER.",
+   "section": "16.12.1",
+   "section_title": "Logic channels",
+   "page": 536,
+   "firmware": [
+    "03.000"
+   ],
+   "suffixes": [
+    {
+     "name": "<p>",
+     "values": "1..2",
+     "range": [
+      1,
+      2
+     ]
+    },
+    {
+     "name": "<n>",
+     "values": "1..2",
+     "range": [
+      1,
+      2
+     ]
+    }
+   ],
+   "parameters": [
+    {
+     "name": "<Level>",
+     "unit": "V",
+     "description": "Threshold voltage"
+    }
+   ],
+   "notes": [
+    "Bench-verified on FW 03.000: LOG1:THR USER; LOG1:THR:UDL 0.5 for the ~1 V pattern-generator outputs.",
+    "The firmware also lists UDLevel2; presumably the level for the upper nibble of the pod (unverified)."
+   ]
+  }
+ },
+ {
+  "match": "^WGENerator:OUTPut:LOAD$",
+  "notes": [
+   "Not a relay: the generator always has a 50 ohm source impedance. R50 tells it a 50 ohm load is connected, so the amplitude you set appears at the load; HIGHz assumes an open (1 Mohm) input. A Bode sweep leaves it at R50."
+  ]
+ },
+ {
+  "match": "^CHANnel<m>:COUPling$",
+  "notes": [
+   "The RTB2 inputs are 1 Mohm only (no internal 50 ohm). For a 50 ohm system use an external feed-through terminator and set WGENerator:OUTPut:LOAD R50 when the generator drives it."
+  ]
+ },
+ {
+  "match": "^PGENerator:FUNCtion$",
+  "notes": [
+   "Serial patterns are fixed demo traffic, levels about 1 V (set the logic threshold to USER 0.5 V). I2C: P0 SCL, P1 SDA; writes '*idn?' to address 0x20 and reads 'Rohde&Schwarz - RTB2004'. SPI: P0 clock, P1 MOSI, P2 MISO, P3 CS (active low); MOSI 'Rohde&Schwarz' and 'RTB2004', MISO echoes one byte later. UART: P0 Tx, 115200 Bd, idle high, '*idn?\\n'; decodes cleanest as 9 bits, no parity, 1 stop bit.",
+   "COUNter drives a 4-bit up/down counter on P0..P3 at PGENerator:PATTern:COUNter:FREQuency. The serial data rate is not settable by remote command on FW 03.000."
+  ]
+ },
+ {
+  "match": ":HISTory:EXPort:(NAME|SAVE)$",
+  "notes": [
+   "BUS<b>:HISTory:EXPort writes only the segment timestamp table (CSV, same content as EXPort:ATABle), not decoded frames. Harvest decodes with the FRAMe queries per segment instead. Download the CSV with MMEMory:DATA?."
+  ]
+ },
+ {
+  "match": "^(BUS<b>|CHANnel<m>|LOGic<p>|DIGital<m>):HISTory:CURRent$",
+  "notes": [
+   "Selecting a segment re-runs the bus decode for that segment (about 190-240 ms per segment). Segmented memory uses a short record: keep the sample rate at least ~10x the bus bit rate or the per-segment decode is garbled."
+  ]
+ },
+ {
+  "match": "^LOGic<p>:DATA\\?$",
+  "notes": [
+   "Pod data: one value per sample, bit n = channel n of the pod (D0..D7 for pod 1). Use UINT,8: 7.5 MSa in about 0.9 s. With UINT,16 the pod value lands in the high byte."
+  ]
+ },
+ {
+  "match": "^MMEMory:DATA$",
+  "notes": [
+   "MMEM:DATA? \"name\" returns a file from the current directory (MMEM:CDIR \"/INT\") as block data; about 1 ms for 1 kB."
+  ]
+ }
+]

@@ -1,0 +1,83 @@
+{
+ "id": "06-uart-decode",
+ "title": "Serial decode: a UART byte stream with the bus table",
+ "commands": [
+  "DEV:MODE YT",
+  "PGEN:PATT:STAT OFF",
+  "CHAN1:STAT ON",
+  "CHAN1:COUP DCL",
+  "CHAN1:POS 0",
+  "CHAN1:OFFS 0",
+  "TIM:POS 0",
+  "TIM:REF 50",
+  "TRIG:A:SOUR CH1",
+  "TRIG:A:TYPE EDGE",
+  "TRIG:A:EDGE:SLOP POS",
+  "WGEN:OUTP:LOAD R50",
+  "WGEN:MOD OFF",
+  "WGEN:FUNC PULS",
+  "WGEN:FREQ 500",
+  "WGEN:FUNC:PULS:DCYC 15",
+  "WGEN:VOLT 1",
+  "WGEN:VOLT:OFFS 0.5",
+  "CHAN1:SCAL 0.2",
+  "CHAN1:POS -2",
+  "CHAN1:THR 0.5",
+  "TIM:SCAL 2e-3",
+  "TRIG:A:MODE AUTO",
+  "TRIG:A:LEV1 0.5",
+  "BUS1:TYPE UART",
+  "BUS1:UART:DATA:SOUR CH1",
+  "BUS1:UART:BAUD 9600",
+  "BUS1:UART:SSIZ 8",
+  "BUS1:UART:PAR NONE",
+  "BUS1:UART:SBIT B1",
+  "BUS1:UART:POL IDLL",
+  "BUS1:FORM HEX",
+  "BUS1:STAT ON",
+  "BUS1:RES ON",
+  "WGEN:OUTP ON",
+  "SING"
+ ],
+ "problems": [],
+ "readouts": {
+  "BUS1:UART:FCO?": "13",
+  "BUS1:UART:FRAM1:STAT?": "OK",
+  "BUS1:UART:FRAM1:WORD1:VAL?": "252"
+ },
+ "harvest": {
+  "frames": 13,
+  "queries": 39,
+  "seconds": 0.06,
+  "frames_per_second": 215.6,
+  "first": [
+   {
+    "start": "-1.200004E-02",
+    "status": "OK",
+    "value": "252"
+   },
+   {
+    "start": "-1.000004E-02",
+    "status": "OK",
+    "value": "252"
+   },
+   {
+    "start": "-8.000070E-03",
+    "status": "OK",
+    "value": "252"
+   },
+   {
+    "start": "-6.000045E-03",
+    "status": "OK",
+    "value": "252"
+   },
+   {
+    "start": "-4.000045E-03",
+    "status": "OK",
+    "value": "252"
+   }
+  ]
+ },
+ "png_bytes": 37875,
+ "png": "06-uart-decode.png"
+}

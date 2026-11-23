@@ -1,0 +1,51 @@
+{
+ "id": "03-fft-harmonics",
+ "title": "FFT of a 10 kHz square wave: the odd harmonics",
+ "commands": [
+  "DEV:MODE YT",
+  "PGEN:PATT:STAT OFF",
+  "CHAN1:STAT ON",
+  "CHAN1:COUP DCL",
+  "CHAN1:POS 0",
+  "CHAN1:OFFS 0",
+  "TIM:POS 0",
+  "TIM:REF 50",
+  "TRIG:A:SOUR CH1",
+  "TRIG:A:TYPE EDGE",
+  "TRIG:A:EDGE:SLOP POS",
+  "WGEN:OUTP:LOAD R50",
+  "WGEN:MOD OFF",
+  "WGEN:FUNC SQU",
+  "WGEN:FREQ 10000",
+  "WGEN:VOLT 1",
+  "WGEN:VOLT:OFFS 0",
+  "CHAN1:SCAL 0.5",
+  "TRIG:A:MODE AUTO",
+  "TRIG:A:LEV1 0",
+  "WGEN:OUTP ON",
+  "SPEC ON",
+  "SPEC:SOUR CH1",
+  "SPEC:FREQ:WIND:TYPE HANN",
+  "SPEC:FREQ:MAGN:SCAL DBV"
+ ],
+ "problems": [],
+ "fft_rounds": [
+  [
+   "2E+02",
+   "2.861247E+06",
+   "1.428912E+04"
+  ],
+  [
+   "1.122E+02",
+   "2.001594E+05",
+   "1.00021E+03"
+  ]
+ ],
+ "readouts": {
+  "SPEC:FREQ:STAR?": "1.072E+02",
+  "SPEC:FREQ:STOP?": "2.001567E+05",
+  "SPEC:FREQ:BAND?": "9.99850E+02"
+ },
+ "png_bytes": 46425,
+ "png": "03-fft-harmonics.png"
+}

@@ -1,0 +1,55 @@
+{
+ "id": "09-i2c-decode",
+ "title": "I2C on the logic probe: the pattern generator asks *idn? and reads the answer",
+ "commands": [
+  "DEV:MODE YT",
+  "PGEN:PATT:STAT OFF",
+  "CHAN1:STAT ON",
+  "CHAN1:COUP DCL",
+  "CHAN1:POS 0",
+  "CHAN1:OFFS 0",
+  "TIM:POS 0",
+  "TIM:REF 50",
+  "TRIG:A:SOUR CH1",
+  "TRIG:A:TYPE EDGE",
+  "TRIG:A:EDGE:SLOP POS",
+  "WGEN:OUTP:LOAD R50",
+  "WGEN:MOD OFF",
+  "CHAN1:STAT OFF",
+  "LOG1:STAT ON",
+  "LOG1:THR USER",
+  "LOG1:THR:UDL 0.5",
+  "TRIG:A:TYPE EDGE",
+  "TRIG:A:MODE NORM",
+  "TIM:REF 8.33",
+  "BUS1:STAT ON",
+  "BUS1:RES ON",
+  "PGEN:FUNC I2C",
+  "TRIG:A:SOUR D0",
+  "TRIG:A:EDGE:SLOP NEG",
+  "TIM:SCAL 5e-5",
+  "BUS1:TYPE I2C",
+  "BUS1:I2C:CLOC:SOUR D0",
+  "BUS1:I2C:DATA:SOUR D1",
+  "BUS1:FORM ASC",
+  "PGEN:PATT:STAT ON",
+  "SING"
+ ],
+ "problems": [
+  {
+   "readout_errors": {
+    "1": [
+     "-200,\"Execution error\""
+    ]
+   }
+  }
+ ],
+ "readouts": {
+  "BUS1:I2C:FCO?": "3",
+  "BUS1:I2C:FRAM1:ADDR?": null,
+  "BUS1:I2C:FRAM1:DATA?": "48,52",
+  "BUS1:I2C:FRAM2:DATA?": "42,105,100,110,63"
+ },
+ "png_bytes": 31758,
+ "png": "09-i2c-decode.png"
+}

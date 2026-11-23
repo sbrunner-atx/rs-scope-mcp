@@ -1,0 +1,19 @@
+{
+ "idn": {
+  "manufacturer": "Rohde&Schwarz",
+  "model": "RTB2004",
+  "serial": "1333.1005k04/101941",
+  "firmware": "03.000",
+  "raw": "Rohde&Schwarz,RTB2004,1333.1005k04/101941,03.000"
+ },
+ "options": [
+  "K1",
+  "K2",
+  "K3",
+  "K15",
+  "B1",
+  "B6",
+  "B243",
+  "K36"
+ ]
+}

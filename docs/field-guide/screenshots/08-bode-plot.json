@@ -1,0 +1,37 @@
+{
+ "id": "08-bode-plot",
+ "title": "Bode plot (K36): the loopback as a 0 dB / 0 degree reference sweep",
+ "commands": [
+  "DEV:MODE YT",
+  "PGEN:PATT:STAT OFF",
+  "CHAN1:STAT ON",
+  "CHAN1:COUP DCL",
+  "CHAN1:POS 0",
+  "CHAN1:OFFS 0",
+  "TIM:POS 0",
+  "TIM:REF 50",
+  "TRIG:A:SOUR CH1",
+  "TRIG:A:TYPE EDGE",
+  "TRIG:A:EDGE:SLOP POS",
+  "WGEN:OUTP:LOAD R50",
+  "WGEN:MOD OFF",
+  "ACQ:POIN:AUT ON",
+  "BPL:INP CH1",
+  "BPL:OUTP CH1",
+  "BPL:FREQ:STAR 100",
+  "BPL:FREQ:STOP 1e6",
+  "BPL:POIN:LOG 20",
+  "BPL:AMPL:MODE CONS",
+  "BPL:REP OFF",
+  "BPL:ENAB ON",
+  "BPL:STAT RUN"
+ ],
+ "problems": [],
+ "sweep_seconds": 10.4,
+ "readouts": {
+  "BPL:FREQ:STAR?": "1.0000E+02",
+  "BPL:FREQ:STOP?": "1.00000000E+06"
+ },
+ "png_bytes": 54602,
+ "png": "08-bode-plot.png"
+}

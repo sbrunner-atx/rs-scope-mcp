@@ -1,0 +1,59 @@
+{
+ "id": "05-am-sidebands",
+ "title": "AM in the frequency domain: carrier and the two sidebands at +/- 1 kHz",
+ "commands": [
+  "DEV:MODE YT",
+  "PGEN:PATT:STAT OFF",
+  "CHAN1:STAT ON",
+  "CHAN1:COUP DCL",
+  "CHAN1:POS 0",
+  "CHAN1:OFFS 0",
+  "TIM:POS 0",
+  "TIM:REF 50",
+  "TRIG:A:SOUR CH1",
+  "TRIG:A:TYPE EDGE",
+  "TRIG:A:EDGE:SLOP POS",
+  "WGEN:OUTP:LOAD R50",
+  "WGEN:MOD OFF",
+  "WGEN:FUNC SIN",
+  "WGEN:FREQ 100000",
+  "WGEN:VOLT 1",
+  "WGEN:VOLT:OFFS 0",
+  "WGEN:MOD:TYPE AM",
+  "WGEN:MOD:AM:FREQ 1000",
+  "WGEN:MOD:AM:DEPT 80",
+  "WGEN:MOD ON",
+  "CHAN1:SCAL 0.2",
+  "TRIG:A:MODE AUTO",
+  "WGEN:OUTP ON",
+  "SPEC ON",
+  "SPEC:SOUR CH1",
+  "SPEC:FREQ:WIND:TYPE HANN",
+  "SPEC:FREQ:MAGN:SCAL DBV"
+ ],
+ "problems": [],
+ "fft_rounds": [
+  [
+   "8.5831E+04",
+   "2.946854E+06",
+   "1.429479E+04"
+  ],
+  [
+   "9.51290E+04",
+   "1.666546E+05",
+   "4.5299E+02"
+  ],
+  [
+   "9.50098E+04",
+   "1.050234E+05",
+   "4.0054E+02"
+  ]
+ ],
+ "readouts": {
+  "SPEC:FREQ:CENT?": "1.0001760E+05",
+  "SPEC:FREQ:SPAN?": "1.001358E+04",
+  "SPEC:FREQ:BAND?": "5.0066E+01"
+ },
+ "png_bytes": 80354,
+ "png": "05-am-sidebands.png"
+}

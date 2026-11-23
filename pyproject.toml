@@ -1,0 +1,54 @@
+[project]
+name = "rs-scope-mcp"
+version = "0.1.0"
+description = "MCP server that lets Claude and other AI assistants control Rohde & Schwarz oscilloscopes (RTB2 / RTB2000 series) over LAN and harvest what they measure."
+readme = "README.md"
+license = "PolyForm-Noncommercial-1.0.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [
+    { name = "Stefan Brunner (AE5VG)" },
+]
+keywords = [
+    "oscilloscope", "rtb2000", "rtb2", "rtb2004", "rtb2002", "rohde-schwarz", "scpi", "mcp",
+    "model-context-protocol", "ham-radio", "amateur-radio", "embedded",
+    "reverse-engineering", "claude", "ai-assistant", "ae5vg",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: Other/Proprietary License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Communications :: Ham Radio",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+    "Topic :: System :: Hardware",
+]
+dependencies = [
+    "mcp[cli]>=1.2.0,<2",
+]
+
+[project.optional-dependencies]
+# Regenerating the command registry from the manual PDF needs PyMuPDF.
+extract = ["pymupdf>=1.24"]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.scripts]
+rs-scope-mcp = "rs_scope_mcp.server:main"
+rs-scope = "rs_scope_mcp.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rs_scope_mcp"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
