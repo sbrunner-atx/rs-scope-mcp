@@ -4,8 +4,9 @@ name: Release
 # (`gh release create vX.Y.Z`), or by hand from the Actions tab / `gh workflow run`.
 # The release tag's version must match pyproject.toml.
 #
-# Auth: PyPI Trusted Publishing (OIDC), no stored token. The publisher is registered
-# on pypi.org for this repository, workflow release.yml, environment release.
+# Auth: the PYPI_API_TOKEN repository secret. Trusted Publishing (OIDC) is also
+# wired (id-token: write); to switch to it, register the publisher on pypi.org
+# (workflow release.yml, environment release) and delete the `password:` line.
 
 on:
   release:
@@ -38,6 +39,8 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
   # Builds the Claude Desktop extension (.mcpb) and the skill files and attaches them
   # to the release that triggered this run. The ae5vg.com Downloads page reads the
