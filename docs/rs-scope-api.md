@@ -1,6 +1,6 @@
 # Rohde & Schwarz RTB2 / RTB2000 SCPI API: A Field-Tested Reference
 
-A complete, **bench-verified** reference to the SCPI remote-control interface of the Rohde & Schwarz RTB2 and RTB2000 oscilloscopes. It merges three sources: the command chapter of the user manual, the command list the firmware itself reports (`SYSTem:TREE?`), and behaviour measured on a real instrument. Where the three disagree, this reference says so.
+A complete, **bench-verified** reference to the SCPI remote-control interface of the Rohde & Schwarz RTB2 and RTB2000 oscilloscopes. It merges three sources: the command chapter of the user manual, the command list the firmware itself reports (`SYSTem:TREE?`), and behavior measured on a real instrument. Where the three disagree, this reference says so.
 
 > **Tested against:** R&S RTB2004, firmware **03.000** (2024-10-15), all options installed (K1, K2, K3, K15, B1, B6, B243, K36), on 2026-11-23. Manual: user manual 1333.1611.02-13 (FW 3.xx). **749 documented command blocks (962 headers incl. aliases)**; firmware tree 03.000: 3,202 headers, of which **408 undocumented command families** are listed in Appendix A.
 
@@ -11,7 +11,7 @@ A complete, **bench-verified** reference to the SCPI remote-control interface of
 ## 1. Transport and connection
 
 - **Raw SCPI socket:** TCP port **5025** (the instrument's *IP Port*). No VISA library is needed. VXI-11 is also offered on port 1024.
-- **Discovery:** the instrument announces itself over mDNS as `_scpi-raw._tcp` ("Rohde&Schwarz RTB2004 - <serial>"). Setup: *Menu, Setup, Interface, Ethernet, Parameter*.
+- **Discovery:** the instrument announces itself over mDNS as `_scpi-raw._tcp` (`Rohde&Schwarz RTB2004 - <serial>`). Setup: *Menu, Setup, Interface, Ethernet, Parameter*.
 - **Framing:** commands and ASCII responses end with a newline. Binary data (waveforms, screenshots, files, settings) uses IEEE 488.2 definite-length blocks: `#<n><length><bytes>` then a newline.
 - **Latency:** about 0.5 to 2 ms per simple query on a LAN. Many queries can share one line.
 
@@ -23,20 +23,54 @@ A complete, **bench-verified** reference to the SCPI remote-control interface of
 - **Several commands per line:** separate with `;:`, for example `CHAN1:SCAL?;:TIM:SCAL?;*OPC?`. Responses come back `;`-separated in the same order.
 - Type column below: **Q** query only, **S** set only, **S/Q** set and query, **E** event (no value), **U** undocumented (from the firmware tree).
 
-## 3. Field-tested behaviour (read this first)
+## 3. Field-tested behavior (read this first)
 
 These rules come from the bench, not the manual. They are built into `rs-scope-mcp`.
 
+### 3.1 Talking to the instrument
+
+- **One client at a time.** The RTB2 serves a single LAN client on port 5025. A second connection (the instrument's web page in a browser, another script) is accepted but gets no answers until the first one closes. Share one connection inside a program.
 - **A rejected query sends no response at all.** An undefined header, a decode query on a bus of another type, or a value out of range simply produces silence until the client times out; the reason is in the error queue. Append `*OPC?` to every query (`X?;*OPC?`): the instrument still answers `1`, so a lone `1` means `X?` was rejected and `SYSTem:ERRor?` tells you why, within about 2 ms.
 - **Read the error queue after writes.** Settings are rejected silently too (`-221 Settings conflict`, `-222 Data out of range`). Drain `SYSTem:ERRor?` until `0,"No error"`, or use `SYSTem:ERRor:ALL?`.
-- **Applications are exclusive modes.** `DEVice:MODE` switches between YT, XY, FFT, mask test and others. The Bode plot reads back `BPL`, which the manual does not list. In BPL mode, bus decode fails with `-221`; leaving it switches the generator output off and can leave the generator load at 50 ohm.
-- **Decode queries need the matching bus type.** `BUS<b>:I2C:...`, `BUS<b>:UART:...` and the rest only answer when `BUS<b>:TYPE` is that protocol.
-- **FFT mode owns the timebase.** Enable `SPECtrum` first, then set start and stop. Span, resolution bandwidth, window length and sample rate are coupled, so the instrument adjusts them in steps; apply start/stop again until they settle (two or three rounds on FW 03.000).
-- **Full memory needs a stopped acquisition.** `...:DATA:POINts MAX` and `DMAX` only take effect when stopped. Use `SINGle;*OPC?` first.
-- **History holds what it holds.** Fifty single acquisitions at 10 kSa left 40 segments; read `ACQuire:AVAilable?`. Out-of-range `HISTory:CURRent` indexes are clamped without an error; the valid range is `HISTory:STARt?` to `HISTory:STOP?` (0 is the newest).
 - **No value is 9.91E+37.** Measurements and statistics report `9.91E+37` when there is nothing to measure. Treat it as NaN.
+
+### 3.2 Application modes
+
+- **Applications are exclusive modes, and switching takes time.** `DEVice:MODE` switches between YT, XY, FFT, mask test and others. The Bode plot reads back `BPL`, which the manual does not list. A mode change (`DEVice:MODE`, `SPECtrum:STATe`, `BPLot:ENABle`, `MASK:STATe`, `DISPlay:MODE`) takes about one second: send `*OPC?` after it before the next command. In BPL mode, bus decode and many settings fail with `-221`.
+- **The Bode application leaves changes behind.** Enabling it sets the memory to `ACQuire:MEMory LIMited` (75 kSa), changes channel scale and coupling, and sets the generator load to 50 ohm. Afterwards `ACQuire:MEMory AUTomatic` is refused with `-221`; only restoring a setup saved before the sweep (`SYSTem:SET`) brings full memory back. Leaving BPL switches the generator off.
+- **FFT mode owns the timebase.** Enable `SPECtrum` first, then set start and stop. Span, resolution bandwidth, window length and sample rate are coupled, so the instrument adjusts them in steps; apply start/stop again until they settle (two or three rounds on FW 03.000).
+
+### 3.3 Acquisition, measurements and history
+
+- **Full memory needs a stopped acquisition.** `...:DATA:POINts MAX` and `DMAX` only take effect when stopped. Use `SINGle;*OPC?` first.
+- **Measure on a fresh acquisition.** Automatic measurements on a stopped record can return the values of an older screen. Run `SINGle;*OPC?` or keep the scope running before reading `MEASurement<m>:RESult?`.
+- **History queries need a stopped scope.** While acquiring, `HISTory` and `ACQuire:AVAilable?` queries are rejected (`-200`); send `STOP` first. The number of segments `ACQuire:NSINgle:COUNt` accepts depends on the record length (100 and 40 were refused with `-222` at full memory, 16 worked).
+- **History holds what it holds.** Fifty single acquisitions at 10 kSa left 40 segments; read `ACQuire:AVAilable?`. Out-of-range `HISTory:CURRent` indexes are clamped without an error; the valid range is `HISTory:STARt?` to `HISTory:STOP?` (0 is the newest).
+
+### 3.4 Decoding and logic
+
+- **Decode queries need the matching bus type.** `BUS<b>:I2C:...`, `BUS<b>:UART:...` and the rest only answer when `BUS<b>:TYPE` is that protocol.
+- **Enable the decoder before the acquisition.** `BUS<b>:STATe ON` must be set before `SINGle`; frames of an acquisition taken earlier are not decoded. Keep the sample rate at least ten times the bit rate.
+- **Logic thresholds come in two parts.** `LOGic<p>:THReshold` takes the mode (`TTL`, `CMOS`, `ECL`, `USER`...), `LOGic<p>:THReshold:UDLevel<n>` the user level in volts. The manual merges them into one command.
+- **The pattern generator's test buses.** `PGENerator:FUNCtion` I2C, SPI and UART patterns on P0..P3 are useful references. The UART pattern runs at 115200 Bd and decodes cleanly as 9 data bits, no parity. The SPI pattern's chip select is pseudo-random, so frames can start or end incomplete. An unclocked parallel decode shows one-sample values while lines change; use the clocked parallel bus when a clock exists.
+
+### 3.5 Generator
+
+- **The inputs are 1 Mohm only.** For 50 ohm signals use a feed-through terminator. `WGENerator:OUTPut:LOAD R50|HIGHz` does not change the 50 ohm source: it tells the generator what load to expect so the set amplitude appears there. Measured: 1 Vpp set with `R50` gives 1.030 Vpp at the terminator. By the same source impedance, `HIGHz` into a terminator reads half the set amplitude, and `R50` into an open 1 Mohm input reads double.
+- **Arbitrary waveforms: function first, then the file.** Send `WGENerator:FUNCtion ARBitrary` before `WGENerator:ARBitrary:FILE:NAME` and `...:FILE:OPEN`; otherwise opening fails with `-200`. A CSV file has the header `in s,C1 in V`, then one `time,value` row per point.
+
+### 3.6 Mask test
+
+- **Learning a mask changes the acquisition.** `MASK:CHCopy` copies the channel into the mask and switches `ACQuire:TYPE` to `ENVelope`. Learn from an envelope of a few hundred milliseconds of the known-good signal, then check the new mask against that signal before testing anything else.
+- **Noisy signals need a stable trigger.** With noise on the signal, an edge trigger can fire on the wrong slope and the mask appears shifted by half a period. `TRIGger:A:EDGE:FILTer:HFReject ON` fixes it.
+- **`MASK:TEST RUN` sometimes answers `-221`.** Intermittently, after a mode change. `STOP`, `SINGle`, `RUN` and send it again; do not learn the mask again, because the signal on screen may be the one under test.
+
+### 3.7 Setup and command tree
+
 - **Snapshot and restore the whole setup.** `SYSTem:SET?` returns the complete setup as a block of about 5 kB; sending it back with `SYSTem:SET <block>` restores it in about one second. `FORMat` is not part of it.
 - **The firmware command tree is useful but incomplete.** `SYSTem:TREE?` (about 60 kB, 16 s) lists 3,202 headers but omits working commands such as `HCOPy:DATA?` and the bus `FRAMe<n>` queries. 95 documented commands are not in the tree; most of them still work.
+
+All of these are checked by `scripts/acceptance_test.py`, a 40-check suite that drives the installed connector on a real instrument. On FW 03.000 all 40 pass.
 
 ## 4. Data transfer
 
@@ -72,7 +106,7 @@ These rules come from the bench, not the manual. They are built into `rs-scope-m
 
 ## 6. Command reference
 
-Grouped by the manual's chapters. The last column is the manual page. "Bench" lines are verified behaviour on FW 03.000.
+Grouped by the manual's chapters. The last column is the manual page. "Bench" lines are verified behavior on FW 03.000.
 
 ### 6.1 Common commands
 
@@ -471,7 +505,7 @@ Grouped by the manual's chapters. The last column is the manual page. "Bench" li
 
 | Command | Type | Parameters, values, *RST | Description | p. |
 |---|---|---|---|---:|
-| `DEVice:MODE` | S/Q | `<OperationalMode>` `YT` · `ZOOM` · `XY` · `QMEas` · `UPDate` · `AUToset` · `MASKtest` · `FFT` · `BPL` | Sets the operation mode or application.<br>Bench: Reads back BPL while the Bode plot application is active (FW 03.000); BPL is not in the manual's value list.<br>Bench: Applications are exclusive: in BPL mode, bus decode and other settings fail with -221 'Settings conflict'. Switch with DEV:MODE YT.<br>Bench: Leaving the Bode application turns the generator output off. | 404 |
+| `DEVice:MODE` | S/Q | `<OperationalMode>` `YT` · `ZOOM` · `XY` · `QMEas` · `UPDate` · `AUToset` · `MASKtest` · `FFT` · `BPL` | Sets the operation mode or application.<br>Bench: Reads back BPL while the Bode plot application is active (FW 03.000); BPL is not in the manual's value list.<br>Bench: Applications are exclusive: in BPL mode, bus decode and other settings fail with -221 'Settings conflict'. Switch with DEV:MODE YT.<br>Bench: Leaving the Bode application turns the generator output off.<br>Bench: The Bode application switches ACQuire:MEMory to LIM (75 kSa) and leaves it there; afterwards ACQ:MEM AUT is refused with -221 and only restoring a SYSTem:SET snapshot from before the sweep brings AUTO back. rs-scope-mcp saves one before every bode() and restores it when the mode leaves BPL. | 404 |
 
 #### Mask setup (16.8.2)
 
@@ -479,7 +513,7 @@ Grouped by the manual's chapters. The last column is the manual page. "Bench" li
 |---|---|---|---|---:|
 | `MASK:STATe` | S/Q | `<State>` `ON` · `OFF`; *RST **OFF** | Turns the mask test application on or off. | 404 |
 | `MASK:SOURce` | S/Q | `<Source>` `CH1` · `CH2` · `CH3` · `CH4`; *RST **CH1** | Defines the channel to be compared with the mask, and also the channel from which the mask is created. | 405 |
-| `MASK:CHCopy` | E |  | Creates a mask from the envelope waveform of the source set with MASK:SOURce. | 405 |
+| `MASK:CHCopy` | E |  | Creates a mask from the envelope waveform of the source set with MASK:SOURce.<br>Bench: Switches ACQuire:TYPE to ENVelope (bench-verified on FW 03.000); switch back with ACQ:TYPE REFR before testing. | 405 |
 | `MASK:YPOSition` | S/Q | `<Yposition>` unit div | Moves the mask vertically within the display. | 405 |
 | `MASK:YSCale` | S/Q | `<Yscale>` unit % | Changes the vertical scaling to stretch or compress the mask in y-direction. | 405 |
 | `MASK:XWIDth` | S/Q | `<Xaddition>` unit div | Changes the width of the mask in horizontal direction. | 405 |
@@ -492,11 +526,11 @@ Grouped by the manual's chapters. The last column is the manual page. "Bench" li
 | `MASK:ACTion:SCRSave:DESTination` | S/Q | `<Path>` String parameter | Defines the directory for a screenshot that is saved on mask violation. | 408 |
 | `MASK:ACTion:WFMSave:DESTination` | S/Q | `<Path>` String parameter | Defines the directory for waveform data files that are saved on mask violation. | 408 |
 | `MASK:ACTion:YOUT:ENABle` | S/Q | `<Yout>` `ON` · `OFF`; *RST **OFF** | Creates a pulse on the [AuxOut] connector if the mask is violated. | 409 |
-| `MASK:TEST` | S/Q | `<Test>` `RUN` · `STOP` · `PAUSe`; *RST **STOP** | Starts, finishes or interrupts a mask test. | 409 |
+| `MASK:TEST` | S/Q | `<Test>` `RUN` · `STOP` · `PAUSe`; *RST **STOP** | Starts, finishes or interrupts a mask test.<br>Bench: MASK:CHCopy switches ACQuire:TYPE to ENVelope; set ACQ:TYPE REFR before MASK:TEST RUN, otherwise the test runs on the accumulated envelope (bench-verified).<br>Bench: RUN can answer -221 Settings conflict; a fresh SINGle and RUN usually clears it. Never re-learn the mask from the signal under test.<br>Bench: With noise on the signal, use TRIGger:A:EDGE:FILTer:HFReject ON so the edge trigger does not fire on the falling slope; otherwise the trace sits 180 degrees off the mask. | 409 |
 | `MASK:RESet:COUNter` | E |  | Sets the counters of passed and failed acquisitions to zero. | 409 |
 | `MASK:COUNt?` | Q | returns `<TotalCount>` Total number of tested acquisitions | Returns the number of tested acquisitions. | 410 |
 | `MASK:VCOunt?` | Q | returns `<ViolationCount>` Total number of violations | Returns the number of acquisitions that hit the mask. | 410 |
-| `MASK:CAPTure[:MODE]` | S/Q | `<CaptureMode>` `ALL` · `FAILED`; *RST **ALL** | Only available with history. | 410 |
+| `MASK:CAPTure[:MODE]` | S/Q | `<CaptureMode>` `ALL` · `FAILED`; *RST **ALL** | Only available with history.<br>Bench: FAILED keeps only the failing acquisitions in the history, so they can be examined afterwards (bench-verified). | 410 |
 
 #### General settings (16.8.3)
 
@@ -1034,7 +1068,7 @@ Grouped by the manual's chapters. The last column is the manual page. "Bench" li
 | `WGENerator:ARBitrary:RANGe:STOP` | S/Q | `<StopTime>` unit s | Sets the end time of the copied waveform part. | 549 |
 | `WGENerator:ARBitrary:UPDate` | E |  | Loads the waveform from the selected signal source (WGENerator:ARBitrary: SOURce). | 549 |
 | `WGENerator:ARBitrary[:FILE]:NAME` | S/Q | `<FilePath>` *RST **"** | Sets the file path and the file for an arbitrary waveform to be loaded. | 549 |
-| `WGENerator:ARBitrary[:FILE]:OPEN` | E |  | Loads the arbitrary waveform, that is selected with the WGENerator:ARBitrary[: FILE]:NAME command. | 549 |
+| `WGENerator:ARBitrary[:FILE]:OPEN` | E |  | Loads the arbitrary waveform, that is selected with the WGENerator:ARBitrary[: FILE]:NAME command.<br>Bench: Only works when WGENerator:FUNCtion is already ARB; otherwise -200 Execution error. Load order: WGEN:FUNC ARB, WGEN:ARB:FILE:NAME "/INT/<file>.CSV", WGEN:ARB:FILE:OPEN. The file is the scope's waveform CSV format: header 'in s,C1 in V', then time,value rows (2000 points verified); upload it with MMEMory:DATA. | 549 |
 | `WGENerator:ARBitrary:VISible` | S/Q | `<ArbWaveformVisible>ON | OFF` *RST **OFF** | Enables the display of the arbitrary waveform. | 550 |
 | `WGENerator:BURSt:ITIMe` | S/Q | `<IdleTime>` range 28n to 17; unit s; *RST **100u** | Sets the idle time between two burst cycles. | 550 |
 | `WGENerator:BURSt:NCYCle` | S/Q | `<NumberOfCycles>` range 1 to 1023; *RST **1** | Sets the number of times the generator outputs one cycle of the waveform per burst. | 550 |
@@ -1043,7 +1077,7 @@ Grouped by the manual's chapters. The last column is the manual page. "Bench" li
 | `WGENerator:BURSt:PHASe` | S/Q | `<PhaseOffset>` range 0 to 360; unit Degree; *RST **0** | Sets the start phase of the burst. | 551 |
 | `WGENerator:BURSt[:STATe]` | S/Q | `<Enable>` `ON` · `OFF`; *RST **OFF** | Enables or disables the burst. | 551 |
 | `WGENerator:MODulation[:ENABle]` | S/Q | `<Enable>` `ON` · `OFF` | Activates or deactivates modulation of the function generator output. | 552 |
-| `WGENerator:MODulation:FUNCtion` | S/Q | `<ModulationFunction>SINusiod | SQUare | TRIangle | RAMP`  | Selects a function for the modulation. | 552 |
+| `WGENerator:MODulation:FUNCtion` | S/Q | `<ModulationFunction>` `SINusoid` · `SQUare` · `TRIangle` · `RAMP` | Selects a function for the modulation.<br>Bench: The manual runs the parameter name and its values together (and spells SINusiod). SQUare with 100 % AM makes a hard-keyed carrier (bench-verified). | 552 |
 | `WGENerator:MODulation:TYPE` | S/Q | `<ModulationType>` `AM` · `FM` · `ASK` · `FSK` | Sets the modulation type, which defines how the carrier signal is modified. | 552 |
 | `WGENerator:MODulation:AM:FREQuency` | S/Q | `<Frequency>`  | Sets the frequency of the modulating waveform for AM modulation. | 552 |
 | `WGENerator:MODulation:AM:DEPTh` | S/Q | `<ModulationDepth>`  | Sets the modulation depth, the percentage of the amplitude range that is used for AM modulation. | 553 |
@@ -1112,7 +1146,7 @@ Grouped by the manual's chapters. The last column is the manual page. "Bench" li
 
 ## Appendix A. Undocumented firmware commands
 
-These 408 command families are reported by `SYSTem:TREE?` on FW 03.000 but are not in the manual. Numeric suffixes are generalised (`CHAN<a>` stands for CHAN, CHAN2, CHAN3, CHAN4) with the range the firmware listed. Only the short form is known. Parameters are unknown and not validated; query first, and test on a scope you can reset.
+These 408 command families are reported by `SYSTem:TREE?` on FW 03.000 but are not in the manual. Numeric suffixes are generalized (`CHAN<a>` stands for CHAN, CHAN2, CHAN3, CHAN4) with the range the firmware listed. Only the short form is known. Parameters are unknown and not validated; query first, and test on a scope you can reset.
 
 | Root | Commands |
 |---|---|
@@ -1148,7 +1182,7 @@ These 408 command families are reported by `SYSTem:TREE?` on FW 03.000 but are n
 
 ## Credits, license and commercial support
 
-Generated from the [`rs-scope-mcp`](https://github.com/sbrunner-atx/rs-scope-mcp) command registry by `scripts/gen_api_docs.py`. Command names, parameters and defaults are from the R&S RTB2 user manual (chapter 16) and from the instrument's firmware; behaviour notes are from bench tests. Rohde & Schwarz is not responsible for this document.
+Generated from the [`rs-scope-mcp`](https://github.com/sbrunner-atx/rs-scope-mcp) command registry by `scripts/gen_api_docs.py`. Command names, parameters and defaults are from the R&S RTB2 user manual (chapter 16) and from the instrument's firmware; behavior notes are from bench tests. Rohde & Schwarz is not responsible for this document.
 
 **Free for hobbyists.** Personal use, amateur radio, education and nonprofit use of `rs-scope-mcp` and this reference are free (PolyForm Noncommercial License 1.0.0).
 

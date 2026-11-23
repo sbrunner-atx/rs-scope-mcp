@@ -117,7 +117,7 @@ registry at load: documented commands are tagged with the firmware versions that
 and every undocumented firmware header becomes an `undocumented` entry (suffixes generalised,
 parameters not validated) so the foundation never blocks a real command.
 `data/overrides.json` holds bench-verified corrections: extra enum values (e.g. `DEV:MODE BPL`),
-behaviour notes surfaced by `scpi_describe`, and `absent_in` firmware versions (refused before
+behavior notes surfaced by `scpi_describe`, and `absent_in` firmware versions (refused before
 sending).
 
 ## Bench validation

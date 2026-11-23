@@ -47,8 +47,8 @@ runs, other tools refuse; stop it first.
 ## Safety at the bench
 
 - **Inputs are 1 Mohm only.** For 50 ohm systems use a feed-through terminator on the input and
-  tell the generator: `WGEN:OUTP:LOAD R50`. With the terminator and `HIGHz`, amplitudes read double
-  what was set; without a terminator and `R50`, half.
+  tell the generator: `WGEN:OUTP:LOAD R50`. The source is always 50 ohm: with the terminator and
+  `HIGHz`, amplitudes read half what was set; without a terminator and `R50`, double.
 - **Probe ratings first.** Ask what is being probed when the voltage is unknown. Mains, motor
   drives, switch-mode primaries and tube equipment need a differential probe, not the ground clip.
 - **The ground clip is ground.** It connects to protective earth through the scope. Clipping it to

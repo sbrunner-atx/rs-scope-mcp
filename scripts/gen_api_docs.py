@@ -104,7 +104,7 @@ def build_markdown(reg: Registry) -> str:
     a(f"# {TITLE}\n")
     a("A complete, **bench-verified** reference to the SCPI remote-control interface of the Rohde & Schwarz "
       "RTB2 and RTB2000 oscilloscopes. It merges three sources: the command chapter of the user manual, the "
-      "command list the firmware itself reports (`SYSTem:TREE?`), and behaviour measured on a real instrument. "
+      "command list the firmware itself reports (`SYSTem:TREE?`), and behavior measured on a real instrument. "
       "Where the three disagree, this reference says so.\n")
     a(f"> **Tested against:** R&S RTB2004, firmware **03.000** (2024-10-15), all options installed "
       f"(K1, K2, K3, K15, B1, B6, B243, K36), on 2026-11-23. Manual: user manual 1333.1611.02-13 (FW 3.xx). "
@@ -122,7 +122,7 @@ def build_markdown(reg: Registry) -> str:
     a("- **Raw SCPI socket:** TCP port **5025** (the instrument's *IP Port*). No VISA library is needed. "
       "VXI-11 is also offered on port 1024.")
     a("- **Discovery:** the instrument announces itself over mDNS as `_scpi-raw._tcp` "
-      "(\"Rohde&Schwarz RTB2004 - <serial>\"). Setup: *Menu, Setup, Interface, Ethernet, Parameter*.")
+      "(`Rohde&Schwarz RTB2004 - <serial>`). Setup: *Menu, Setup, Interface, Ethernet, Parameter*.")
     a("- **Framing:** commands and ASCII responses end with a newline. Binary data (waveforms, screenshots, "
       "files, settings) uses IEEE 488.2 definite-length blocks: `#<n><length><bytes>` then a newline.")
     a("- **Latency:** about 0.5 to 2 ms per simple query on a LAN. Many queries can share one line.\n")
@@ -138,46 +138,111 @@ def build_markdown(reg: Registry) -> str:
     a("- Type column below: **Q** query only, **S** set only, **S/Q** set and query, **E** event (no value), "
       "**U** undocumented (from the firmware tree).\n")
 
-    a("## 3. Field-tested behaviour (read this first)\n")
+    a("## 3. Field-tested behavior (read this first)\n")
     a("These rules come from the bench, not the manual. They are built into `rs-scope-mcp`.\n")
-    rules = [
-        ("A rejected query sends no response at all.",
-         ("An undefined header, a decode query on a bus of another type, or a value out of range simply "
-         "produces silence until the client times out; the reason is in the error queue. Append `*OPC?` to every "
-         "query (`X?;*OPC?`): the instrument still answers `1`, so a lone `1` means `X?` was rejected and "
-         "`SYSTem:ERRor?` tells you why, within about 2 ms.")),
-        ("Read the error queue after writes.",
-         ("Settings are rejected silently too (`-221 Settings conflict`, `-222 Data out of range`). "
-         "Drain `SYSTem:ERRor?` until `0,\"No error\"`, or use `SYSTem:ERRor:ALL?`.")),
-        ("Applications are exclusive modes.",
-         ("`DEVice:MODE` switches between YT, XY, FFT, mask test and others. The Bode plot reads back `BPL`, which "
-         "the manual does not list. In BPL mode, bus decode fails with `-221`; leaving it switches the generator "
-         "output off and can leave the generator load at 50 ohm.")),
-        ("Decode queries need the matching bus type.",
-         "`BUS<b>:I2C:...`, `BUS<b>:UART:...` and the rest only answer when `BUS<b>:TYPE` is that protocol."),
-        ("FFT mode owns the timebase.",
-         ("Enable `SPECtrum` first, then set start and stop. Span, resolution bandwidth, window length and sample "
-         "rate are coupled, so the instrument adjusts them in steps; apply start/stop again until they settle "
-         "(two or three rounds on FW 03.000).")),
-        ("Full memory needs a stopped acquisition.",
-         "`...:DATA:POINts MAX` and `DMAX` only take effect when stopped. Use `SINGle;*OPC?` first."),
-        ("History holds what it holds.",
-         ("Fifty single acquisitions at 10 kSa left 40 segments; read `ACQuire:AVAilable?`. Out-of-range "
-         "`HISTory:CURRent` indexes are clamped without an error; the valid range is `HISTory:STARt?` to "
-         "`HISTory:STOP?` (0 is the newest).")),
-        ("No value is 9.91E+37.",
-         "Measurements and statistics report `9.91E+37` when there is nothing to measure. Treat it as NaN."),
-        ("Snapshot and restore the whole setup.",
-         ("`SYSTem:SET?` returns the complete setup as a block of about 5 kB; sending it back with "
-         "`SYSTem:SET <block>` restores it in about one second. `FORMat` is not part of it.")),
-        ("The firmware command tree is useful but incomplete.",
-         (f"`SYSTem:TREE?` (about 60 kB, 16 s) lists {fw_line.split(': ')[-1]} but omits working commands such "
-         f"as `HCOPy:DATA?` and the bus `FRAMe<n>` queries. {len(absent_tree)} documented commands are not in the "
-         "tree; most of them still work.")),
+    groups = [
+        ("3.1 Talking to the instrument", [
+            ("One client at a time.",
+             ("The RTB2 serves a single LAN client on port 5025. A second connection (the instrument's web page in a "
+             "browser, another script) is accepted but gets no answers until the first one closes. Share one "
+             "connection inside a program.")),
+            ("A rejected query sends no response at all.",
+             ("An undefined header, a decode query on a bus of another type, or a value out of range simply "
+             "produces silence until the client times out; the reason is in the error queue. Append `*OPC?` to every "
+             "query (`X?;*OPC?`): the instrument still answers `1`, so a lone `1` means `X?` was rejected and "
+             "`SYSTem:ERRor?` tells you why, within about 2 ms.")),
+            ("Read the error queue after writes.",
+             ("Settings are rejected silently too (`-221 Settings conflict`, `-222 Data out of range`). "
+             "Drain `SYSTem:ERRor?` until `0,\"No error\"`, or use `SYSTem:ERRor:ALL?`.")),
+            ("No value is 9.91E+37.",
+             "Measurements and statistics report `9.91E+37` when there is nothing to measure. Treat it as NaN."),
+        ]),
+        ("3.2 Application modes", [
+            ("Applications are exclusive modes, and switching takes time.",
+             ("`DEVice:MODE` switches between YT, XY, FFT, mask test and others. The Bode plot reads back `BPL`, which "
+             "the manual does not list. A mode change (`DEVice:MODE`, `SPECtrum:STATe`, `BPLot:ENABle`, "
+             "`MASK:STATe`, `DISPlay:MODE`) takes about one second: send `*OPC?` after it before the next command. "
+             "In BPL mode, bus decode and many settings fail with `-221`.")),
+            ("The Bode application leaves changes behind.",
+             ("Enabling it sets the memory to `ACQuire:MEMory LIMited` (75 kSa), changes channel scale and coupling, "
+             "and sets the generator load to 50 ohm. Afterwards `ACQuire:MEMory AUTomatic` is refused with `-221`; "
+             "only restoring a setup saved before the sweep (`SYSTem:SET`) brings full memory back. Leaving BPL "
+             "switches the generator off.")),
+            ("FFT mode owns the timebase.",
+             ("Enable `SPECtrum` first, then set start and stop. Span, resolution bandwidth, window length and sample "
+             "rate are coupled, so the instrument adjusts them in steps; apply start/stop again until they settle "
+             "(two or three rounds on FW 03.000).")),
+        ]),
+        ("3.3 Acquisition, measurements and history", [
+            ("Full memory needs a stopped acquisition.",
+             "`...:DATA:POINts MAX` and `DMAX` only take effect when stopped. Use `SINGle;*OPC?` first."),
+            ("Measure on a fresh acquisition.",
+             ("Automatic measurements on a stopped record can return the values of an older screen. Run `SINGle;*OPC?` "
+             "or keep the scope running before reading `MEASurement<m>:RESult?`.")),
+            ("History queries need a stopped scope.",
+             ("While acquiring, `HISTory` and `ACQuire:AVAilable?` queries are rejected (`-200`); send `STOP` first. "
+             "The number of segments `ACQuire:NSINgle:COUNt` accepts depends on the record length (100 and 40 "
+             "were refused with `-222` at full memory, 16 worked).")),
+            ("History holds what it holds.",
+             ("Fifty single acquisitions at 10 kSa left 40 segments; read `ACQuire:AVAilable?`. Out-of-range "
+             "`HISTory:CURRent` indexes are clamped without an error; the valid range is `HISTory:STARt?` to "
+             "`HISTory:STOP?` (0 is the newest).")),
+        ]),
+        ("3.4 Decoding and logic", [
+            ("Decode queries need the matching bus type.",
+             "`BUS<b>:I2C:...`, `BUS<b>:UART:...` and the rest only answer when `BUS<b>:TYPE` is that protocol."),
+            ("Enable the decoder before the acquisition.",
+             ("`BUS<b>:STATe ON` must be set before `SINGle`; frames of an acquisition taken earlier are not decoded. "
+             "Keep the sample rate at least ten times the bit rate.")),
+            ("Logic thresholds come in two parts.",
+             ("`LOGic<p>:THReshold` takes the mode (`TTL`, `CMOS`, `ECL`, `USER`...), `LOGic<p>:THReshold:UDLevel<n>` "
+             "the user level in volts. The manual merges them into one command.")),
+            ("The pattern generator's test buses.",
+             ("`PGENerator:FUNCtion` I2C, SPI and UART patterns on P0..P3 are useful references. The UART pattern runs "
+             "at 115200 Bd and decodes cleanly as 9 data bits, no parity. The SPI pattern's chip select is "
+             "pseudo-random, so frames can start or end incomplete. An unclocked parallel decode shows one-sample "
+             "values while lines change; use the clocked parallel bus when a clock exists.")),
+        ]),
+        ("3.5 Generator", [
+            ("The inputs are 1 Mohm only.",
+             ("For 50 ohm signals use a feed-through terminator. `WGENerator:OUTPut:LOAD R50|HIGHz` does not change "
+             "the 50 ohm source: it tells the generator what load to expect so the set amplitude appears there. "
+             "Measured: 1 Vpp set with `R50` gives 1.030 Vpp at the terminator. By the same source impedance, `HIGHz` into "
+             "a terminator reads half the set amplitude, and `R50` into an open 1 Mohm input reads double.")),
+            ("Arbitrary waveforms: function first, then the file.",
+             ("Send `WGENerator:FUNCtion ARBitrary` before `WGENerator:ARBitrary:FILE:NAME` and `...:FILE:OPEN`; "
+             "otherwise opening fails with `-200`. A CSV file has the header `in s,C1 in V`, then one "
+             "`time,value` row per point.")),
+        ]),
+        ("3.6 Mask test", [
+            ("Learning a mask changes the acquisition.",
+             ("`MASK:CHCopy` copies the channel into the mask and switches `ACQuire:TYPE` to `ENVelope`. Learn from an "
+             "envelope of a few hundred milliseconds of the known-good signal, then check the new mask against that "
+             "signal before testing anything else.")),
+            ("Noisy signals need a stable trigger.",
+             ("With noise on the signal, an edge trigger can fire on the wrong slope and the mask appears shifted by "
+             "half a period. `TRIGger:A:EDGE:FILTer:HFReject ON` fixes it.")),
+            ("`MASK:TEST RUN` sometimes answers `-221`.",
+             ("Intermittently, after a mode change. `STOP`, `SINGle`, `RUN` and send it again; do not learn the mask "
+             "again, because the signal on screen may be the one under test.")),
+        ]),
+        ("3.7 Setup and command tree", [
+            ("Snapshot and restore the whole setup.",
+             ("`SYSTem:SET?` returns the complete setup as a block of about 5 kB; sending it back with "
+             "`SYSTem:SET <block>` restores it in about one second. `FORMat` is not part of it.")),
+            ("The firmware command tree is useful but incomplete.",
+             (f"`SYSTem:TREE?` (about 60 kB, 16 s) lists {fw_line.split(': ')[-1]} but omits working commands such "
+             f"as `HCOPy:DATA?` and the bus `FRAMe<n>` queries. {len(absent_tree)} documented commands are not in the "
+             "tree; most of them still work.")),
+        ]),
     ]
-    for title, body in rules:
-        a(f"- **{title}** {body}")
-    a("")
+    for heading, rules in groups:
+        a(f"### {heading}\n")
+        for title, body in rules:
+            a(f"- **{title}** {body}")
+        a("")
+    a("All of these are checked by `scripts/acceptance_test.py`, a 40-check suite that drives the installed "
+      "connector on a real instrument. On FW 03.000 all 40 pass.\n")
 
     a("## 4. Data transfer\n")
     a("`FORMat[:DATA]` selects `ASCii`, `REAL,32` or `UINTeger,8|16|32`; `FORMat:BORDer` the byte order "
@@ -206,7 +271,7 @@ def build_markdown(reg: Registry) -> str:
 
     a("## 6. Command reference\n")
     a("Grouped by the manual's chapters. The last column is the manual page. "
-      "\"Bench\" lines are verified behaviour on FW 03.000.\n")
+      "\"Bench\" lines are verified behavior on FW 03.000.\n")
     by_chapter: dict[str, dict[str, list]] = defaultdict(lambda: defaultdict(list))
     titles: dict[str, str] = {}
     for c in manual:
@@ -235,7 +300,7 @@ def build_markdown(reg: Registry) -> str:
 
     a("## Appendix A. Undocumented firmware commands\n")
     a(f"These {len(undoc)} command families are reported by `SYSTem:TREE?` on FW 03.000 but are not in the "
-      "manual. Numeric suffixes are generalised (`CHAN<a>` stands for CHAN, CHAN2, CHAN3, CHAN4) with the range "
+      "manual. Numeric suffixes are generalized (`CHAN<a>` stands for CHAN, CHAN2, CHAN3, CHAN4) with the range "
       "the firmware listed. Only the short form is known. Parameters are unknown and not validated; query "
       "first, and test on a scope you can reset.\n")
     groups: dict[str, list] = defaultdict(list)
@@ -255,7 +320,7 @@ def build_markdown(reg: Registry) -> str:
     a("## Credits, license and commercial support\n")
     a(f"Generated from the [`rs-scope-mcp`]({REPO}) command registry by `scripts/gen_api_docs.py`. "
       "Command names, parameters and defaults are from the R&S RTB2 user manual (chapter 16) and from the "
-      "instrument's firmware; behaviour notes are from bench tests. Rohde & Schwarz is not responsible for this "
+      "instrument's firmware; behavior notes are from bench tests. Rohde & Schwarz is not responsible for this "
       "document.\n")
     a("**Free for hobbyists.** Personal use, amateur radio, education and nonprofit use of `rs-scope-mcp` and "
       "this reference are free (PolyForm Noncommercial License 1.0.0).\n")

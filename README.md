@@ -112,7 +112,7 @@ the releases page):
 
 - [Demo mode](docs/DEMO.md): wiring for the analog and the full demo, and every scene.
 - [SCPI API reference](docs/rs-scope-api.md) ([PDF](docs/rs-scope-api.pdf)): every command, with the
-  bench-verified behaviour the manual does not mention.
+  bench-verified behavior the manual does not mention.
 - [Architecture](docs/ARCHITECTURE.md): the layer stack, the data store and the context strategy.
 - [Bench notes](docs/BENCH-NOTES.md): what was measured on the RTB2004.
 - [Field Guide screenshots](docs/field-guide/screenshots/): captured by `scripts/field_guide_shots.py`.
