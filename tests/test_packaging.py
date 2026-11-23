@@ -17,3 +17,10 @@ def test_versions_agree():
     pyproject = next(line.split('"')[1] for line in (ROOT / "pyproject.toml").read_text().splitlines()
                      if line.startswith("version"))
     assert manifest == server["version"] == server["packages"][0]["version"] == pyproject
+
+
+def test_package_version_matches():
+    import rs_scope_mcp
+    manifest = json.loads((ROOT / "manifest.json").read_text())["version"]
+    assert rs_scope_mcp.__version__ == manifest
+    assert f"## {manifest}" in (ROOT / "CHANGELOG.md").read_text()

@@ -1,6 +1,16 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.1 (unreleased)
+
+- `measure` takes a fresh single acquisition when the scope is stopped (a stopped record may not
+  contain the source, for example after a capture with that channel off).
+- `history` stops the acquisition first (history queries are rejected while it runs); `mask test`
+  with `keep_failed` stops at the end so the stored failures stay frozen.
+- Desktop extension: display name without a slash (it broke the launch), data folder defaults to
+  `${HOME}/rs-scope-data` and is created on first use.
+- `scripts/acceptance_test.py`: 21 checks on real hardware through the MCP protocol.
+
+## 0.1.0
 
 First release. Supported and bench-tested: R&S RTB2 / RTB2000 series (RTB2004, firmware 03.000).
 
