@@ -104,3 +104,35 @@ def test_store_series_roundtrip(tmp_path):
     st.add_series(cid, "CH1", "analog", -1e-3, 1e-6, "V", np.arange(5, dtype=np.float32), {"vpp": 4})
     meta, arr = st.series(cid, "CH1")
     assert meta["unit"] == "V" and arr.tolist() == [0, 1, 2, 3, 4]
+
+
+def test_demo_tool_guarded_blocks_other_tools_and_restores(srv):
+    import time
+
+    from rs_scope_mcp import demo as D
+    assert srv.demo("start")["error"] == "guarded"
+    assert {s["id"] for s in srv.demo("scenes", level="full")["scenes"]} >= {"heartbeat", "mask", "bus-i2c"}
+    srv.scpi(["CHAN1:SCAL 0.2"])
+    # analog scenes without the heartbeat (the simulator has no file system for the waveform upload)
+    D_only = [s.id for s in D.scenes_for("analog") if not s.heart][:2]
+    orig = D.SCENES[:]
+    settles = {s.id: s.settle for s in orig}
+    D.SCENES[:] = [s for s in orig if s.id in D_only]
+    for s in D.SCENES:
+        s.settle = 0.05
+    try:
+        r = srv.demo("start", level="analog", dwell_s=0.1, loops=1, confirm=True)
+        assert r["ok"] and r["scenes"] == D_only
+        blocked = srv.scpi("CHAN1:SCAL?")
+        assert blocked["ok"] is False and "demo" in blocked["message"]
+        for _ in range(100):
+            if not srv.demo("status")["running"]:
+                break
+            time.sleep(0.1)
+        st = srv.demo("status")
+        assert not st["running"] and st["result"]["restored"] and st["result"]["scenes_played"] == 2
+        assert srv.scpi("CHAN1:SCAL?")["results"][0]["response"] == "0.2"
+    finally:
+        D.SCENES[:] = orig
+        for s in orig:
+            s.settle = settles[s.id]

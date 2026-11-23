@@ -58,6 +58,35 @@ def cmd_tree_diff(a) -> int:
     return 0
 
 
+WIRING = {
+    "analog": "Aux Out -> 50 ohm feed-through terminator -> CH1",
+    "full": "Aux Out -> 50 ohm terminator -> CH1, and pattern generator P0..P3 -> logic probe D0..D3",
+}
+
+
+def cmd_demo(a) -> int:
+    from .demo import Demo, scenes_for
+    if a.list:
+        print(f"wiring ({a.level}): {WIRING[a.level]}")
+        for s in scenes_for(a.level):
+            print(f"  {s.id:12s} {s.level:6s} {s.title}: {s.caption}")
+        return 0
+    if not a.yes:
+        print(f"The demo drives the generator outputs. Wiring for '{a.level}': {WIRING[a.level]}.\n"
+              "Run again with --yes once it is wired.", file=sys.stderr)
+        return 2
+    i = _inst(a)
+    d = Demo(i, level=a.level, dwell=a.dwell, loops=a.loops, only=a.only,
+             shots=Path(a.shots) if a.shots else None)
+    try:
+        result = d.run()
+    except KeyboardInterrupt:
+        d.stop()
+        result = {"stopped": True}
+    print(json.dumps(result, indent=1))
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="rs-scope", description="R&S RTB2 bench CLI (rs-scope-mcp)")
     ap.add_argument("--host", default=os.environ.get("RS_SCOPE_HOST"))
@@ -80,6 +109,15 @@ def main(argv=None) -> int:
     d = sub.add_parser("describe")
     d.add_argument("header")
     sub.add_parser("stats", help="registry statistics")
+    dm = sub.add_parser("demo", help="play the demo scenes on the scope (see docs/DEMO.md)")
+    dm.add_argument("--level", choices=["analog", "full"], default="analog")
+    dm.add_argument("--dwell", type=float, default=12.0, help="seconds per scene")
+    dm.add_argument("--loops", type=int, default=1, help="0 = until Ctrl-C")
+    dm.add_argument("--only", nargs="*", help="scene ids")
+    dm.add_argument("--shots", help="save a screenshot of every scene into this folder")
+    dm.add_argument("--list", action="store_true", help="list the scenes and the wiring")
+    dm.add_argument("--yes", action="store_true",
+                    help="confirm the wiring: the demo drives the generator and pattern-generator outputs")
     a = ap.parse_args(argv)
 
     try:
@@ -113,6 +151,8 @@ def main(argv=None) -> int:
                 print("not found", file=sys.stderr)
                 return 1
             print(json.dumps(describe(c, verbose=True), indent=1, ensure_ascii=False))
+        elif a.cmd == "demo":
+            return cmd_demo(a)
         elif a.cmd == "stats":
             reg = Registry.default()
             print(json.dumps({"meta": reg.meta, "subsystems": reg.subsystems()}, indent=1))

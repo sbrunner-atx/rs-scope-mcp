@@ -362,6 +362,78 @@ class Scope:
         return {"freq_hz": f, "gain_db": g, "phase_deg": p, "seconds": round(seconds, 1),
                 "input": input_ch, "output": output_ch, "load": self.q("WGENerator:OUTPut:LOAD?").strip()}
 
+    # ------------------------------------------------------------------ mask test
+    def mask_create(self, source: str = "CH1", x_margin_div: float = 0.1, y_margin_div: float = 0.2,
+                    learn_s: float = 1.0) -> dict:
+        """Learn a tolerance mask from the signal on screen: its envelope plus margins (divisions)."""
+        self.ensure_yt()
+        # learn from a fresh acquisition at the current timebase (stale records cause -221 later)
+        self.i.write("MASK:TEST STOP", check_errors=False)
+        self.i.write("MASK:STATe OFF", check_errors=False)
+        self.i.write("SINGle", wait=True, timeout=30)
+        self.run()
+        time.sleep(learn_s)
+        for line in ("MASK:STATe ON", f"MASK:SOURce {source}", "MASK:CHCopy", f"MASK:XWIDth {x_margin_div}",
+                     f"MASK:YWIDth {y_margin_div}"):
+            errs = self.w(line)
+            if errs:
+                raise ScopeError(f"{line}: {errs}")
+        self._mask = (source, x_margin_div, y_margin_div)
+        return {"source": source, "x_margin_div": x_margin_div, "y_margin_div": y_margin_div}
+
+    def mask_start(self) -> None:
+        """MASK:TEST RUN, with one re-learn when the firmware reports -221 (seen after timebase changes)."""
+        errs = self.w("MASK:TEST RUN")
+        if errs and any(e.startswith("-221") for e in errs) and getattr(self, "_mask", None):
+            self.mask_create(*self._mask)
+            self.w("MASK:RESet:COUNter")
+            errs = self.w("MASK:TEST RUN")
+        if errs:
+            raise ScopeError(f"MASK:TEST RUN: {errs}")
+
+    def mask_test(self, acquisitions: int = 1000, timeout: float = 120.0, keep_failed: bool = True,
+                  stop_on_failures: int = 0) -> dict:
+        """Run the mask test until `acquisitions` have been tested; count the ones that hit the mask.
+
+        keep_failed stores only failing acquisitions in the history (segmented memory), so they can
+        be examined afterwards with history(); stop_on_failures>0 stops at that many violations.
+        """
+        if self.q("MASK:STATe?").strip() not in ("1", "ON"):
+            raise ScopeError("no mask: create one first (mask action='create')")
+        self.w("MASK:TEST STOP")
+        self.w("MASK:RESet:COUNter")
+        if keep_failed:
+            self.i.write("MASK:CAPTure FAILED", check_errors=False)
+        if stop_on_failures:
+            self.w("MASK:ACTion:STOP:EVENt:MODE CYCLic")
+            self.w(f"MASK:ACTion:STOP:EVENt:COUNt {stop_on_failures}")
+        else:
+            self.i.write("MASK:ACTion:STOP:EVENt:MODE OFF", check_errors=False)
+        self.run()
+        t0 = time.monotonic()
+        self.mask_start()
+        tested = failed = 0
+        while time.monotonic() - t0 < timeout:
+            time.sleep(0.5)
+            tested, failed = (int(num(v) or 0) for v in self.qm(["MASK:COUNt?", "MASK:VCOunt?"]))
+            if tested >= acquisitions or (stop_on_failures and failed >= stop_on_failures):
+                break
+            if self.q("ACQuire:STATe?").strip().upper() not in ("RUN", "RUNNING"):
+                break
+        self.w("MASK:TEST PAUSe")
+        seconds = time.monotonic() - t0
+        out = {"tested": tested, "failed": failed, "passed": tested - failed,
+               "failure_rate": round(failed / tested, 6) if tested else None, "seconds": round(seconds, 1),
+               "acquisitions_per_s": round(tested / seconds, 1) if seconds else None}
+        if keep_failed and failed:
+            out["failed_in_history"] = int(num(self.q("ACQuire:AVAilable?")) or 0)
+            out["next"] = "history(action='harvest', sources=[...]) walks the stored failures"
+        return out
+
+    def mask_off(self) -> None:
+        self.i.write("MASK:TEST STOP", check_errors=False)
+        self.i.write("MASK:STATe OFF", check_errors=False)
+
     # ------------------------------------------------------------------ screen
     def screenshot(self) -> bytes:
         self.i.write("HCOPy:LANGuage PNG", check_errors=False)

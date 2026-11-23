@@ -49,6 +49,9 @@ Pre-alpha. In place and bench-tested:
 - **Local data store:** every capture is kept in `RS_SCOPE_DATA_DIR` (SQLite catalog plus sample
   files and the scope's own setup), so Claude gets a compact summary and asks for details only when
   needed.
+- **Pass/fail testing and demo mode:** `mask` learns a tolerance envelope from a good signal and
+  counts failures (keeping only the failing acquisitions for analysis); `demo` plays a looping show
+  of what the scope can do, analog only or with the logic probe ([docs/DEMO.md](docs/DEMO.md)).
 - **Foundation tools:** `connection`, `scpi_search`, `scpi_describe`, `scpi`, `scpi_block`, `screenshot`.
 - **Simulator** for tests and demos without hardware.
 
@@ -95,6 +98,7 @@ Settings: `RS_SCOPE_HOST`, `RS_SCOPE_PORT` (5025), `RS_SCOPE_TIMEOUT` (10 s),
 
 ## Documentation
 
+- [Demo mode](docs/DEMO.md): wiring for the analog and the full demo, and every scene.
 - [SCPI API reference](docs/rs-scope-api.md) ([PDF](docs/rs-scope-api.pdf)): every command, with the
   bench-verified behaviour the manual does not mention.
 - [Architecture](docs/ARCHITECTURE.md): the layer stack, the data store and the context strategy.

@@ -8,6 +8,8 @@ Task tools (harvest into the local store, return summaries, drill down on reques
   bode         - Bode sweep (guarded), -3 dB points and shape returned
   history      - segmented memory: info, or harvest every segment
   data         - drill into stored series, edges and frames, or read-only SQL
+  demo         - a looping show of what the scope can do (analog, or full with the logic probe)
+  mask         - pass/fail tolerance masks: create from a good signal, test, count failures
   setup        - show, save or restore the instrument setup
 
 Foundation tools (the complete SCPI command set):
@@ -37,6 +39,7 @@ from . import analysis as an
 from .instrument import GuardedCommand, Instrument, InstrumentError, ValidationError
 from .registry import Registry, describe
 from .scope import Scope, ScopeError
+from .scope import num as scope_num
 from .store import Store
 from .transport import TransportError
 
@@ -50,9 +53,14 @@ _state: dict[str, Any] = {
     "inst": None,
 }
 DATA_DIR = Path(os.environ.get("RS_SCOPE_DATA_DIR") or Path.home() / "rs-scope-data").expanduser()
+_demo_box: dict[str, Any] = {}
 
 
-def _inst() -> Instrument:
+def _inst(for_demo: bool = False) -> Instrument:
+    d = _demo_box.get("demo")
+    if d is not None and not for_demo and _demo_box["thread"].is_alive():
+        raise RuntimeError("The demo is running on the scope (it allows one client at a time). "
+                           "Call demo(action='stop') first.")
     inst: Instrument | None = _state["inst"]
     if inst is None:
         if not _state["host"]:
@@ -492,6 +500,111 @@ def data(action: str = "captures", capture_id: str | None = None, source: str | 
                                             offset, limit)}
         if action == "sql":
             return {"ok": True, **st.sql(sql or "", limit)}
+        return {"ok": False, "message": f"unknown action {action!r}"}
+    except Exception as e:  # noqa: BLE001
+        return _err(e)
+
+
+@mcp.tool()
+def mask(action: str = "status", source: str = "CH1", x_margin_div: float = 0.1, y_margin_div: float = 0.2,
+         acquisitions: int = 1000, timeout_s: float = 120.0, keep_failed: bool = True,
+         stop_on_failures: int = 0, note: str | None = None) -> dict:
+    """Pass/fail mask testing: does the signal stay inside a tolerance envelope?
+
+    action "create": learn a mask from the signal now on `source` (its envelope) widened by
+      x_margin_div / y_margin_div divisions. Show the known-good signal first.
+    action "test": run until `acquisitions` have been tested (or timeout_s); returns tested, failed,
+      failure rate and rate per second. keep_failed stores only failing acquisitions in segmented
+      memory for history(action="harvest"); stop_on_failures stops at that many violations.
+    action "status": current counts. action "off": end the mask test.
+    """
+    try:
+        sc, st = _scope(), _store()
+        if action == "create":
+            return {"ok": True, **sc.mask_create(source, x_margin_div, y_margin_div)}
+        if action == "test":
+            r = sc.mask_test(acquisitions, timeout_s, keep_failed, stop_on_failures)
+            cid = st.new_capture("mask", note, _inst().idn.get("raw"), sc.settings())
+            st.set_summary(cid, r)
+            return {"ok": True, "capture": cid, **r}
+        if action == "status":
+            tested, failed = (int(an_num or 0) for an_num in
+                              (scope_num(v) for v in sc.qm(["MASK:COUNt?", "MASK:VCOunt?"])))
+            return {"ok": True, "mask_on": sc.q("MASK:STATe?").strip() in ("1", "ON"), "tested": tested,
+                    "failed": failed}
+        if action == "off":
+            sc.mask_off()
+            return {"ok": True}
+        return {"ok": False, "message": f"unknown action {action!r}"}
+    except Exception as e:  # noqa: BLE001
+        return _err(e)
+
+
+DEMO_WIRING = {
+    "analog": "Aux Out -> 50 ohm feed-through terminator -> CH1. Nothing else.",
+    "full": "Aux Out -> 50 ohm feed-through terminator -> CH1, and pattern generator P0..P3 -> logic probe "
+            "D0..D3 (probe ground to the pattern generator's ground contact).",
+}
+
+
+@mcp.tool()
+def demo(action: str = "status", level: str = "analog", dwell_s: float = 12.0, loops: int = 0,
+         confirm: bool = False) -> dict:
+    """Demo mode: the scope plays a looping show of what it can do (heartbeat monitor, glowing
+    noisy signal, radar ping, AM, FM spectrum, harmonics, bursts, a pass/fail mask test, and with the
+    logic probe wired, live I2C/SPI decoding and a logic-analyzer counter).
+
+    action: "scenes" (list them and the wiring), "start", "stop", "status".
+    level: "analog" (Aux Out -> 50 ohm terminator -> CH1) or "full" (plus pattern generator P0..P3 ->
+      logic probe D0..D3). dwell_s: seconds per scene. loops: 0 = until stopped.
+    Starting is guarded (confirm=true): it drives the generator and pattern-generator outputs.
+    The setup is snapshotted first and restored when the demo stops. While it runs, other tools wait
+    (the scope accepts one LAN client at a time).
+    """
+    import threading
+
+    from .demo import Demo, scenes_for
+    try:
+        d = _demo_box.get("demo")
+        running = bool(d is not None and _demo_box["thread"].is_alive())
+        if action == "scenes":
+            return {"ok": True, "level": level, "wiring": DEMO_WIRING.get(level),
+                    "scenes": [{"id": x.id, "title": x.title, "caption": x.caption, "level": x.level}
+                               for x in scenes_for(level)]}
+        if action == "status":
+            out = {"ok": True, "running": running}
+            if d is not None:
+                out.update(current=d.current, log=_demo_box.get("log", [])[-5:],
+                           result=_demo_box.get("result"), level=d.level)
+            return out
+        if action == "stop":
+            if not running:
+                return {"ok": True, "running": False, "result": _demo_box.get("result")}
+            d.stop()
+            _demo_box["thread"].join(timeout=60)
+            return {"ok": True, "running": _demo_box["thread"].is_alive(), "result": _demo_box.get("result")}
+        if action == "start":
+            if running:
+                return {"ok": False, "message": "the demo is already running"}
+            if not confirm:
+                return {"ok": False, "error": "guarded",
+                        "message": "the demo drives the generator (and in 'full' the pattern generator); "
+                                   f"wiring: {DEMO_WIRING.get(level)} Resend with confirm=true."}
+            log: list[str] = []
+            inst = _inst(for_demo=True)
+            dm = Demo(inst, level=level, dwell=dwell_s, loops=loops, log=log.append)
+
+            def runner():
+                try:
+                    _demo_box["result"] = dm.run()
+                except Exception as e:  # noqa: BLE001
+                    _demo_box["result"] = {"error": str(e)}
+
+            th = threading.Thread(target=runner, name="rs-scope-demo", daemon=True)
+            _demo_box.update(demo=dm, thread=th, log=log, result=None)
+            th.start()
+            return {"ok": True, "running": True, "level": level, "scenes": [x.id for x in dm.scenes],
+                    "dwell_s": dwell_s, "wiring": DEMO_WIRING[level], "stop_with": "demo(action='stop')"}
         return {"ok": False, "message": f"unknown action {action!r}"}
     except Exception as e:  # noqa: BLE001
         return _err(e)

@@ -191,5 +191,24 @@
   "notes": [
    "MMEM:DATA? \"name\" returns a file from the current directory (MMEM:CDIR \"/INT\") as block data; about 1 ms for 1 kB."
   ]
+ },
+ {
+  "match": "^WGENerator:ARBitrary\\[:FILE\\]:OPEN$",
+  "notes": [
+   "Only works when WGENerator:FUNCtion is already ARB; otherwise -200 Execution error. Load order: WGEN:FUNC ARB, WGEN:ARB:FILE:NAME \"/INT/<file>.CSV\", WGEN:ARB:FILE:OPEN. The file is the scope's waveform CSV format: header 'in s,C1 in V', then time,value rows (2000 points verified); upload it with MMEMory:DATA."
+  ]
+ },
+ {
+  "match": "^MASK:TEST$",
+  "notes": [
+   "RUN sometimes answers -221 Settings conflict after timebase changes. MASK:STAT OFF, one SINGle, then MASK:STAT ON / MASK:CHCopy again clears it.",
+   "With noise on the signal, use TRIGger:A:EDGE:FILTer:HFReject ON so the edge trigger does not fire on the falling slope; otherwise the trace sits 180 degrees off the mask."
+  ]
+ },
+ {
+  "match": "^MASK:CAPTure\\[:MODE\\]$",
+  "notes": [
+   "FAILED keeps only the failing acquisitions in the history, so they can be examined afterwards (bench-verified)."
+  ]
  }
 ]

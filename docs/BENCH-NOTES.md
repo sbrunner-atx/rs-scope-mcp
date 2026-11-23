@@ -59,3 +59,14 @@ Run through the MCP tool functions against the RTB2004, then the original setup 
 | `bode` 100 Hz-1 MHz | 41 points in 6.8 s, flat 0 dB (loopback), load R50 |
 | `history` | 9 segments available, 8 harvested with CH1 and I2C each; SQL shows 2/2 OK frames in every segment |
 | `setup` save / restore | Restored without errors; generator off, pattern generator back to its original state |
+
+## Round 4: demo mode and mask testing (2026-11-23)
+
+| Area | Result | Consequence |
+|---|---|---|
+| LAN clients | The RTB2 serves **one** SCPI client at a time; a second connection gets no answers | The MCP server owns the single connection; the demo runs on it in a background thread and other tools wait |
+| Arbitrary waveform | Upload a CSV (`in s,C1 in V` header, time,value rows) with `MMEM:DATA`, then `WGEN:FUNC ARB` **before** `WGEN:ARB:FILE:NAME` / `OPEN` | Heartbeat scene; the order is in `overrides.json` |
+| Mask test | Learn from a clean signal (`MASK:CHC`), margins in divisions, `MASK:TEST RUN`; counts via `MASK:COUN?` / `MASK:VCO?`; `MASK:CAPT FAILED` keeps only failures in history | `mask` tool (create, test, status, off) |
+| Mask conflict | `MASK:TEST RUN` intermittently -221 after timebase changes; off / single / re-learn clears it | Automatic retry in `mask_start` |
+| Trigger with noise | Edge trigger fires on the falling slope through noise; trace 180 degrees off the mask | `TRIG:A:EDGE:FILT:HFR ON` for noisy signals |
+| Demo | 11 scenes, full pass in 115 s, setup restored, uploaded waveform deleted | `docs/DEMO.md`, screenshots in `docs/demo/` |
