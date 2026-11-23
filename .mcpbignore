@@ -1,0 +1,18 @@
+# Files excluded from the packaged .mcpb bundle
+.git/
+.venv/
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.pytest_cache/
+tests/
+*.egg-info/
+build/
+dist/
+.DS_Store
+icon_*.png
+# dev tooling and documentation assets, not part of the extension
+scripts/
+docs/field-guide/
+docs/demo/
+docs/*.pdf

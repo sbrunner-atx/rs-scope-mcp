@@ -1,0 +1,44 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.sbrunner-atx/rs-scope-mcp",
+  "description": "Drive Rohde & Schwarz RTB2/RTB2000 oscilloscopes over LAN: capture, decode, FFT, Bode, mask tests.",
+  "repository": {
+    "url": "https://github.com/sbrunner-atx/rs-scope-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "rs-scope-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "RS_SCOPE_HOST",
+          "description": "IP address or host name of the oscilloscope.",
+          "isRequired": true,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "RS_SCOPE_PORT",
+          "description": "SCPI port of the oscilloscope.",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string",
+          "default": "5025"
+        },
+        {
+          "name": "RS_SCOPE_DATA_DIR",
+          "description": "Folder for captures, screenshots and the catalog (default ~/rs-scope-data).",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

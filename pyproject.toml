@@ -40,6 +40,14 @@ dev = ["pytest>=8.0", "ruff>=0.6"]
 rs-scope-mcp = "rs_scope_mcp.server:main"
 rs-scope = "rs_scope_mcp.cli:main"
 
+[project.urls]
+Homepage = "https://github.com/sbrunner-atx/rs-scope-mcp"
+Documentation = "https://github.com/sbrunner-atx/rs-scope-mcp#readme"
+Repository = "https://github.com/sbrunner-atx/rs-scope-mcp"
+Issues = "https://github.com/sbrunner-atx/rs-scope-mcp/issues"
+Changelog = "https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/CHANGELOG.md"
+"Commercial use" = "https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/COMMERCIAL.md"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

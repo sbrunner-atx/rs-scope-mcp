@@ -1,0 +1,93 @@
+{
+  "manifest_version": "0.4",
+  "name": "rs-scope-mcp",
+  "display_name": "R&S Oscilloscope (RTB2 / RTB2000)",
+  "version": "0.1.0",
+  "description": "Let Claude drive a Rohde & Schwarz RTB2 / RTB2000 oscilloscope over LAN and keep what it measures.",
+  "long_description": "Connects to an R&S RTB2 or RTB2000 oscilloscope over the LAN (raw SCPI, port 5025) with the complete command set: every documented command plus the undocumented commands the firmware reports, each validated before it is sent. Task tools capture analog channels, logic pods and decoded serial buses (I2C, SPI, UART, CAN, LIN, parallel) in one call, run FFTs, Bode sweeps, measurements and pass/fail mask tests, and walk segmented memory. Everything is stored locally with the instrument setup, so Claude gets compact summaries and drills into samples, edges or frames only when needed. Generator outputs, Bode sweeps, resets, file deletion and network settings need explicit confirmation. Includes a demo mode. Free for hobbyists; commercial use needs a license (see COMMERCIAL.md). Independent project, not affiliated with Rohde & Schwarz.",
+  "author": {
+    "name": "Stefan Brunner (AE5VG)",
+    "email": "me@stefanbrunner.org",
+    "url": "https://github.com/sbrunner-atx"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sbrunner-atx/rs-scope-mcp.git"
+  },
+  "homepage": "https://github.com/sbrunner-atx/rs-scope-mcp",
+  "documentation": "https://github.com/sbrunner-atx/rs-scope-mcp#readme",
+  "support": "https://github.com/sbrunner-atx/rs-scope-mcp/issues",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "icon": "icon.png",
+  "keywords": [
+    "oscilloscope",
+    "rohde schwarz",
+    "rtb2000",
+    "scpi",
+    "lab automation",
+    "embedded",
+    "ham radio"
+  ],
+  "server": {
+    "type": "uv",
+    "entry_point": "src/rs_scope_mcp/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${__dirname}",
+        "rs-scope-mcp"
+      ],
+      "env": {
+        "RS_SCOPE_HOST": "${user_config.host}",
+        "RS_SCOPE_PORT": "${user_config.port}",
+        "RS_SCOPE_DATA_DIR": "${user_config.data_dir}"
+      }
+    }
+  },
+  "tools": [
+    {"name": "connection", "description": "Connect to the scope; identity and installed options."},
+    {"name": "capture", "description": "Acquire and harvest analog channels, logic pods and bus decodes in one call; returns a summary."},
+    {"name": "measure", "description": "Automatic measurements as numbers."},
+    {"name": "spectrum", "description": "FFT between two frequencies; noise floor and strongest peaks."},
+    {"name": "bode", "description": "Bode sweep (K36, guarded): -3 dB points, peak, response shape."},
+    {"name": "mask", "description": "Pass/fail tolerance masks: learn from a good signal, test, count failures."},
+    {"name": "history", "description": "Segmented memory: info, or harvest every segment."},
+    {"name": "data", "description": "Drill into stored samples, edges and decoded frames, or read-only SQL."},
+    {"name": "session", "description": "Group captures by task and goal."},
+    {"name": "setup", "description": "Show, save or restore the instrument setup."},
+    {"name": "demo", "description": "A looping show of what the scope can do (guarded; analog or full)."},
+    {"name": "screenshot", "description": "The scope screen as an image."},
+    {"name": "scpi", "description": "Any SCPI command or batch, validated and error-checked; guarded where it acts outside the screen."},
+    {"name": "scpi_search", "description": "Find commands in the registry by keyword."},
+    {"name": "scpi_describe", "description": "Parameters, values, ranges, defaults and bench notes for one command."},
+    {"name": "scpi_block", "description": "Binary block queries (waveforms, files) saved to the data folder."}
+  ],
+  "tools_generated": false,
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {"python": ">=3.10"}
+  },
+  "user_config": {
+    "host": {
+      "type": "string",
+      "title": "Scope address",
+      "description": "IP address or host name of the oscilloscope (on the scope: Menu, Setup, Interface, Ethernet, Parameter).",
+      "required": true
+    },
+    "port": {
+      "type": "number",
+      "title": "SCPI port",
+      "description": "The scope's IP Port (default 5025).",
+      "default": 5025
+    },
+    "data_dir": {
+      "type": "directory",
+      "title": "Data folder",
+      "description": "Where captures, screenshots and the catalog are stored. Leave empty for ~/rs-scope-data.",
+      "required": false
+    }
+  }
+}
