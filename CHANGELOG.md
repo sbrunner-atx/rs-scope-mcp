@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4 (2026-11-23)
+
+- Skills: language review. American spelling, terms explained where first used, and each bench
+  step names who does it (the operator keys the transmitter and feeds the two tones). The
+  confirmation rule in scope-operating names the action as well as the wiring.
+- README: 408 undocumented command families (was 415); status and links brought up to date.
+- No changes to the server or its tools.
+
 ## 0.1.3 (2026-11-23)
 
 - The server reports its own version to MCP clients (it reported the version of the mcp library).

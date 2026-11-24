@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "rs-scope-mcp",
   "display_name": "R&S Oscilloscope (RTB2, RTB2000)",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Let Claude drive a Rohde & Schwarz RTB2 / RTB2000 oscilloscope over LAN and keep what it measures.",
   "long_description": "Connects to an R&S RTB2 or RTB2000 oscilloscope over the LAN (raw SCPI, port 5025) with the complete command set: every documented command plus the undocumented commands the firmware reports, each validated before it is sent. Task tools capture analog channels, logic pods and decoded serial buses (I2C, SPI, UART, CAN, LIN, parallel) in one call, run FFTs, Bode sweeps, measurements and pass/fail mask tests, and walk segmented memory. Everything is stored locally with the instrument setup, so Claude gets compact summaries and drills into samples, edges or frames only when needed. Generator outputs, Bode sweeps, resets, file deletion and network settings need explicit confirmation. Includes a demo mode. Free for hobbyists; commercial use needs a license (see COMMERCIAL.md). Independent project, not affiliated with Rohde & Schwarz.",
   "author": {
