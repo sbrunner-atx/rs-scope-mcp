@@ -36,6 +36,7 @@ from typing import Any
 import numpy as np
 from mcp.server.fastmcp import FastMCP, Image
 
+from . import __version__
 from . import analysis as an
 from .instrument import GuardedCommand, Instrument, InstrumentError, ValidationError
 from .registry import Registry, describe
@@ -45,6 +46,7 @@ from .store import Store
 from .transport import TransportError
 
 mcp = FastMCP("rs-scope-mcp")
+mcp._mcp_server.version = __version__  # otherwise clients see the mcp library version
 
 _registry = Registry.default()
 _state: dict[str, Any] = {

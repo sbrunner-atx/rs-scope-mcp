@@ -1,17 +1,19 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.sbrunner-atx/rs-scope-mcp",
+  "title": "R&S Oscilloscope MCP: AI on the RTB2 / RTB2000 bench",
   "description": "Drive Rohde & Schwarz RTB2/RTB2000 oscilloscopes over LAN: capture, decode, FFT, Bode, mask tests.",
+  "websiteUrl": "https://ae5vg.com/products/rs-scope-mcp.html",
   "repository": {
     "url": "https://github.com/sbrunner-atx/rs-scope-mcp",
     "source": "github"
   },
-  "version": "0.1.2",
+  "version": "0.1.3",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "rs-scope-mcp",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "transport": {
         "type": "stdio"
       },

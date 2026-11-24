@@ -1,5 +1,7 @@
 # rs-scope-mcp
 
+<!-- mcp-name: io.github.sbrunner-atx/rs-scope-mcp -->
+
 **Let Claude drive your Rohde & Schwarz oscilloscope, and keep what it measures.**
 
 An MCP server that connects Claude (and other AI assistants) to a Rohde & Schwarz oscilloscope over

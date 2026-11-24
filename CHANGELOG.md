@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 (2026-11-23)
+
+- The server reports its own version to MCP clients (it reported the version of the mcp library).
+- Published on PyPI and in the MCP Registry: README carries the `mcp-name` line, `server.json` a
+  title and website. Release workflow builds the bundle and the skills and publishes to both.
+- README links are absolute, so they work on the PyPI page; the sdist leaves out PDFs and images.
+
 ## 0.1.2 (2026-11-23)
 
 Found by the new 40-check acceptance suite run end to end on an RTB2004:

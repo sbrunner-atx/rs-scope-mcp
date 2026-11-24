@@ -24,3 +24,15 @@ def test_package_version_matches():
     manifest = json.loads((ROOT / "manifest.json").read_text())["version"]
     assert rs_scope_mcp.__version__ == manifest
     assert f"## {manifest}" in (ROOT / "CHANGELOG.md").read_text()
+
+
+def test_server_reports_package_version():
+    import rs_scope_mcp
+    from rs_scope_mcp.server import mcp
+    assert mcp._mcp_server.version == rs_scope_mcp.__version__
+
+
+def test_readme_carries_mcp_name():
+    # The MCP Registry checks the PyPI README for this line before it accepts server.json.
+    name = json.loads((ROOT / "server.json").read_text())["name"]
+    assert f"mcp-name: {name}" in (ROOT / "README.md").read_text()
