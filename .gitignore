@@ -8,3 +8,5 @@ dist/
 # local harvest store (captures, screenshots, decode tables)
 .rs-scope/
 notes/
+# LinkedIn video and other marketing renders
+media/
