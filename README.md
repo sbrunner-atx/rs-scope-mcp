@@ -5,9 +5,9 @@
 **Let Claude drive your Rohde & Schwarz oscilloscope, and keep what it measures.**
 
 An MCP server that connects Claude (and other AI assistants) to a Rohde & Schwarz oscilloscope over
-the LAN. It controls the instrument through its complete SCPI command set and **harvests the data**:
-waveforms, logic channels, serial-bus decodes, Bode plots, FFTs, measurements, segmented history and
-screenshots, so Claude can analyse real numbers instead of guessing from a picture.
+the LAN. It controls the instrument through its complete SCPI command set and reads back and stores waveforms, logic
+channels, serial-bus decodes, Bode plots, FFTs, measurements, segmented history and screenshots.
+Claude can then analyze real numbers instead of guessing from a picture.
 
 Part of the AE5VG amateur radio AI collection: <https://ae5vg.com>.
 
@@ -19,7 +19,7 @@ Part of the AE5VG amateur radio AI collection: <https://ae5vg.com>.
 
 The RTB2 is the rebranded RTB2000: identical hardware, a different enclosure color scheme, and firmware
 that runs on either, so both names are covered. The project is structured per instrument family
-(`src/rs_scope_mcp/data/<family>/`) so other R&S scopes can follow.
+(`src/rs_scope_mcp/data/<family>/`) so other R&S scopes can be added.
 
 > Independent project, not affiliated with or endorsed by Rohde & Schwarz. R&S and RTB2000 are
 > trademarks of Rohde & Schwarz GmbH & Co. KG.
@@ -37,11 +37,11 @@ Built for three kinds of work: **amateur radio** bench tests, **hardware reverse
 
 ## Status
 
-Pre-alpha. In place and bench-tested:
+Early release (0.1.x), bench-tested on an RTB2004 by a 40-check acceptance suite. In place:
 
-- **Complete SCPI foundation:** 748 documented command blocks (962 headers) from the manual, plus 415
+- **Complete SCPI foundation:** 748 documented command blocks (962 headers) from the manual, plus 408
   undocumented command families the firmware reports. Every command is validated before it is sent.
-- **Reliable sessions:** rejected queries detected in about 2 ms (the instrument otherwise stays silent),
+- **Reliable sessions:** rejected queries (which the instrument never answers) detected in about 2 ms,
   the error queue read after every write, batching, and full-setup snapshot and restore.
 - **Safety gate:** generator and pattern outputs, Bode sweeps, resets, self-alignment, file deletion and
   network settings need explicit confirmation.
@@ -49,15 +49,15 @@ Pre-alpha. In place and bench-tested:
   call), `measure`, `spectrum`, `bode`, `history` (walk segmented memory), `data` (drill into stored
   samples, edges and frames, or read-only SQL), `setup` (show, save, restore) and `session`.
 - **Local data store:** every capture is kept in `RS_SCOPE_DATA_DIR` (SQLite catalog plus sample
-  files and the scope's own setup), so Claude gets a compact summary and asks for details only when
+  files and the scope's own setup). Claude gets a compact summary and asks for details only when
   needed.
 - **Pass/fail testing and demo mode:** `mask` learns a tolerance envelope from a good signal and
-  counts failures (keeping only the failing acquisitions for analysis); `demo` plays a looping show
+  counts failures, keeping only the failing acquisitions for analysis. `demo` plays a looping show
   of what the scope can do, analog only or with the logic probe ([docs/DEMO.md](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/docs/DEMO.md)).
 - **Foundation tools:** `connection`, `scpi_search`, `scpi_describe`, `scpi`, `scpi_block`, `screenshot`.
 - **Simulator** for tests and demos without hardware.
 
-Next: publishing (GitHub, PyPI, MCP Registry) and the Field Guide.
+The [Field Guide](https://ae5vg.com/user-guide/rs-scope-field-guide.html) shows every step with screenshots.
 See [docs/ARCHITECTURE.md](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/docs/ARCHITECTURE.md).
 
 ## Quick start
@@ -115,7 +115,7 @@ the releases page):
 - [Demo mode](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/docs/DEMO.md): wiring for the analog and the full demo, and every scene.
 - [SCPI API reference](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/docs/rs-scope-api.md) ([PDF](https://github.com/sbrunner-atx/rs-scope-mcp/raw/main/docs/rs-scope-api.pdf)): every command, with the
   bench-verified behavior the manual does not mention.
-- [Architecture](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/docs/ARCHITECTURE.md): the layer stack, the data store and the context strategy.
+- [Architecture](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/docs/ARCHITECTURE.md): the layer stack, the data store, and what reaches Claude's context.
 - [Bench notes](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/docs/BENCH-NOTES.md): what was measured on the RTB2004.
 - [Field Guide screenshots](https://github.com/sbrunner-atx/rs-scope-mcp/tree/main/docs/field-guide/screenshots/): captured by `scripts/field_guide_shots.py`.
 
@@ -136,4 +136,4 @@ company test bench, needs a commercial license. Support for more instruments, cu
 integrations, and support plans are available too. See [COMMERCIAL.md](https://github.com/sbrunner-atx/rs-scope-mcp/blob/main/COMMERCIAL.md), and buy
 through **Westlake Professionals**: <https://westlakeprofessionals.com>.
 
-Paid work is what keeps the free version going.
+Paid work funds the free version.

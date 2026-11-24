@@ -21,13 +21,12 @@ description: >
 - **Threshold.** Set the logic threshold to half the high level:
   `scpi(["LOG1:STAT ON", "LOG1:THR USER", "LOG1:THR:UDL 1.65"])` for 3.3 V logic
   (`LOG1:THR TTL`, `CMOS` presets also exist).
-- **Ground.** The logic probe's ground goes to the board's ground. Never to a signal.
+- **Ground.** The logic probe's ground goes to the board's ground, never to a signal.
 
 ## 1. Survey: which lines are alive
 
 1. Long window, free-running: `scpi(["TIM:SCAL 1e-2", "TRIG:A:MODE AUTO"])`.
-2. `capture(sources=["POD1"], note="survey")`. The summary lists `active` lines with edge counts,
-   `min_pulse_s`, `median_pulse_s`, and `idle_levels` for quiet ones.
+2. `capture(sources=["POD1"], note="survey")`. The summary lists `active` lines (edge counts, `min_pulse_s`, `median_pulse_s`) and `idle_levels` for quiet ones.
 3. Quiet lines may be quiet only now: ask the operator to make the device do something (power-up,
    press a button, send a command) and capture again with `acquire="single"` and a trigger on the
    busiest line (`TRIG:A:SOUR D<n>`, `TRIG:A:MODE NORM`).
@@ -44,7 +43,7 @@ description: >
 | A bursting clock, data lines, and a line that holds one level while the clock runs | SPI with clock, chip select (and polarity), MOSI/MISO candidates |
 | One steady periodic line | Clock or square wave (duty near 50 %) or PWM, flagged servo/ESC-style for 1-2 ms pulses at 40-500 Hz |
 
-It is a heuristic. The next step decides.
+It is a heuristic; the decoder in the next step decides.
 
 ## 3. Confirm with the decoder
 
@@ -60,7 +59,7 @@ Set up the decoder from `decoder_setup`, trigger on the start of a transfer, and
   a frame.
 - Then `scpi(["BUS1:STAT ON", "BUS1:FORM ASC"])` and `capture(sources=["BUS1","POD1"])`.
 
-**Frames decode with status OK: confirmed.** If not, change one thing at a time and capture again:
+**Frames that decode with status OK confirm it.** If not, change one thing at a time and capture again:
 
 | Symptom | Try |
 |---|---|
@@ -71,17 +70,15 @@ Set up the decoder from `decoder_setup`, trigger on the start of a transfer, and
 | `-200` on decode queries | `BUS1:TYPE` is not the protocol you are querying |
 
 Bench notes:
-- The RTB2 pattern generator's UART decodes best as 115200 Bd, 9 bits, no parity, although
-  identification correctly reports 115200 Bd idle high; trying framing variants is normal.
+- Identification gets the RTB2 pattern generator's UART right (115200 Bd, idle high), but it decodes best as 115200 Bd, 9 bits, no parity; trying framing variants is normal.
 - Frames cut by the edges of the capture window show as incomplete (`INC`, `INCF`, `INCL`); widen
   the timebase before concluding the bus is broken.
-- An unclocked parallel decode also catches lines mid-transition (a 4-bit counter shows 15, 8, 0
-  instead of 15, 0): use the clocked parallel decoder (`BUS1:TYPE CPAR`) when a clock or strobe
+- An unclocked parallel decode catches lines mid-transition (a 4-bit counter shows 15, 8, 0 instead of 15, 0); use the clocked parallel decoder (`BUS1:TYPE CPAR`) when a clock or strobe
   exists, or ignore one-sample glitch values.
 
 ## 4. Census: what is being said
 
-Harvest many transfers, then query the store instead of reading frames one by one:
+Harvest many transfers, then query the stored frames instead of reading them one by one:
 
 - Several captures: repeat `capture(sources=["BUS1"])` while the operator exercises the device.
 - Many transfers at once: segmented memory. Set the trigger, then
@@ -102,7 +99,8 @@ Harvest many transfers, then query the store instead of reading frames one by on
 | I2C | Address 0x68 or 0x69 | IMU (MPU-6050/9250, ICM-20xxx, BMI) |
 | I2C | 0x76 or 0x77 | Barometer (BMP/BME280, MS5611) |
 | I2C | 0x1E, 0x0D, 0x0C | Magnetometer (HMC5883, QMC5883, AK8963) |
-| I2C | 0x50..0x57 | EEPROM; 0x3C/0x3D: small OLED display |
+| I2C | 0x50..0x57 | EEPROM |
+| I2C | 0x3C or 0x3D | Small OLED display |
 | SPI | First bytes 0x9F, 0x03, 0x0B, 0x02, 0x06, 0x05 | SPI flash: read ID, read, fast read, program, write enable, status |
 | UART | `$GP`, `$GN` text | NMEA GPS (9600, 38400 or 115200 Bd) |
 | UART | Frames start with 0xFE or 0xFD | MAVLink v1 / v2 (57600 or 115200 Bd) |
@@ -117,8 +115,7 @@ Harvest many transfers, then query the store instead of reading frames one by on
 - **Open-drain vs push-pull:** on an analog channel, open-drain lines (I2C, some interrupts) rise
   slowly with an RC curve and fall fast; push-pull lines are symmetric. `measure(source="CH1",
   types=["RTIM","FTIM"])`.
-- **Who drives:** a line whose low level differs slightly between two devices shows two "low"
-  plateaus on an analog channel: two drivers share it.
+- **Who drives:** if two devices pull a line low to slightly different levels, an analog channel shows two "low" plateaus, so two drivers share it.
 
 ## Report
 

@@ -14,8 +14,7 @@ description: >
 ## Before any transmitter measurement
 
 **Never connect a transmitter to the scope directly.** Transmit into a dummy load rated for the
-full power, and take the scope signal from a sampler or tap on the dummy load, followed by
-attenuators, terminated in 50 ohm at the scope input (feed-through terminator).
+full power, and take the scope signal from a sampler or tap on the load, through attenuators, into a 50 ohm feed-through terminator at the scope input.
 
 Keep the signal at the scope below about 2 Vpp (+10 dBm). Peak-to-peak voltage on 50 ohm is
 `Vpp = 2 * sqrt(2 * P * 50)`:
@@ -34,8 +33,7 @@ and do the arithmetic aloud before anyone keys the radio.
 
 **Bandwidth.** RTB2 models run from 70 to 300 MHz depending on the bandwidth option (check
 `connection`). HF and 6 m are fine on any of them; 2 m needs a 200 or 300 MHz unit, and amplitudes
-near the bandwidth limit read low. The FFT is not a spectrum analyzer: its own spurious and harmonic
-levels are roughly -40 to -50 dBc, so report harmonics relative to the carrier and say so.
+near the bandwidth limit read low. The FFT is not a spectrum analyzer. Its own spurious and harmonic levels are roughly -40 to -50 dBc, so report harmonics relative to the carrier and say so.
 
 ## AM modulation depth
 
@@ -47,14 +45,14 @@ levels are roughly -40 to -50 dBc, so report harmonics relative to the carrier a
    (`envelope_min_v` near zero and a high crest factor): that splatters.
 
 Bench note: the RTB2's own generator set to 80 % AM measured 75 % with this method, consistently
-across window sizes. Trust the measurement, not the dial.
+across envelope window sizes. Trust the measurement, not the dial.
 
 Optional, the trapezoid: audio on CH2, RF on CH1, `DISP:MODE XY` with CH2 as X. Straight sides
 mean linear modulation; curved sides mean distortion.
 
 ## CW keying shape and key clicks
 
-1. Send a string of dits (or hold the key for a long dah). `TIM:SCAL` 2 to 5 ms/div, trigger on CH1
+1. The operator sends a string of dits (or holds the key for a long dah). `TIM:SCAL` 2 to 5 ms/div, trigger on CH1
    rising edge, `TRIG:A:MODE NORM`, level a little above zero.
 2. `capture(sources=["CH1"])`, then `data(action="envelope", ...)`: `rise_10_90_s` and
    `fall_90_10_s`.
@@ -69,7 +67,7 @@ sideband peaks every 400 Hz out to 2 kHz either side of the carrier at -20 to -3
 
 ## SSB: two-tone test
 
-1. Feed two equal audio tones, not harmonically related (700 Hz and 1900 Hz), at normal drive.
+1. The operator feeds two equal audio tones, not harmonically related (700 Hz and 1900 Hz), at normal drive.
 2. Envelope: `capture` CH1 over several beat periods (the beat is f2 - f1 = 1200 Hz:
    `TIM:SCAL 1e-3`), then `data(action="envelope", ...)`. A clean two-tone envelope looks like
    rectified sine humps that meet at zero; flat-topping shows as flattened peaks. Compare
@@ -95,8 +93,7 @@ The Bode plot (option K36) sweeps the generator into the filter and measures inp
    `bode(start_hz=..., stop_hz=..., points_per_decade=50, input_channel="CH1", output_channel="CH2", confirm=true)`.
    The range is 10 Hz to 25 MHz.
 3. The result gives the low and high-frequency gain, the peak, -3 dB and -6 dB points, the phase
-   there and the shape. For a band-pass, bandwidth = upper - lower -3 dB point; centre = geometric
-   mean. For a crystal filter, narrow the sweep to the passband and raise the points per decade to
+   there and the shape. For a band-pass, bandwidth is the upper minus the lower -3 dB point; the center is their geometric mean. For a crystal filter, narrow the sweep to the passband and raise the points per decade to
    see ripple.
 4. The arrays are stored (`bode.npz` in the capture folder) for comparison between filters.
 
@@ -107,7 +104,7 @@ to check the setup before connecting the filter.
 
 For the sound card feeding fldigi or WSJT-X:
 
-1. Probe the audio line (10x probe; the audio ground is the ground clip).
+1. Probe the audio line (10x probe; ground clip on the audio ground).
 2. `capture(sources=["CH1"])`: report Vpp, RMS and `clipping`. Clean digital-mode audio is well
    below the interface's clipping level; a crest factor near 1.4 for a single tone is expected.
 3. On the RF side, `spectrum` around the carrier shows splatter from overdrive as extra products

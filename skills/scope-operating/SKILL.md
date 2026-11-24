@@ -25,8 +25,7 @@ description: >
    read values off a screenshot when a measurement or the stored data can give them.
 4. **Guarded means ask.** Commands that drive signals into a circuit (generator and pattern
    generator outputs, Bode sweeps, the demo), `*RST`, self-alignment, file deletion, network
-   settings and setup restores need `confirm=true`. Only send it after the operator has said the
-   wiring is right for it. Never enable an output into an unknown circuit.
+   settings and setup restores need `confirm=true`. Send `confirm=true` only after the operator has confirmed that the wiring and the action are right. Never enable an output into an unknown circuit.
 
 ## Start of a session
 
@@ -47,14 +46,12 @@ runs, other tools refuse; stop it first.
 ## Safety at the bench
 
 - **Inputs are 1 Mohm only.** For 50 ohm systems use a feed-through terminator on the input and
-  tell the generator: `WGEN:OUTP:LOAD R50`. The source is always 50 ohm: with the terminator and
-  `HIGHz`, amplitudes read half what was set; without a terminator and `R50`, double.
+  tell the generator: `WGEN:OUTP:LOAD R50`. The generator output is always 50 ohm. With the terminator and `HIGHz`, amplitudes read half the set value; with `R50` and no terminator, double.
 - **Probe ratings first.** Ask what is being probed when the voltage is unknown. Mains, motor
   drives, switch-mode primaries and tube equipment need a differential probe, not the ground clip.
 - **The ground clip is ground.** It connects to protective earth through the scope. Clipping it to
   a non-ground node of a mains-connected circuit shorts that node.
-- **Transmitters never go straight in.** RF power goes through a dummy load and attenuators sized
-  for it (see ham-bench). The input limit is a few volts at 1 Mohm.
+- **Transmitters never go straight in.** RF power goes through a dummy load and attenuators sized for it (see the ham-bench skill). The input limit is a few volts at 1 Mohm.
 
 ## The capture loop
 
@@ -91,12 +88,11 @@ runs, other tools refuse; stop it first.
 ## Application modes are exclusive
 
 FFT, Bode plot, XY and mask test each take over the screen (`DEVice:MODE`). In Bode mode, bus
-decode and many settings fail with `-221 Settings conflict`. `capture` and `history` switch back to
-YT when they need decodes; when a command fails with -221, check the mode first.
+decode and many settings fail with `-221 Settings conflict`. `capture` and `history` switch back to normal YT mode when they need decodes; when a command fails with -221, check the mode first.
 
 The Bode application changes the memory mode (to a 75 kSa limit), the channel scale and coupling,
 and the generator load. rs-scope-mcp saves the setup before every `bode` sweep and restores it when
-the scope leaves Bode mode, so measurements afterwards run on the setup from before the sweep.
+the scope leaves Bode mode, so measurements afterward run on the setup from before the sweep.
 
 ## Pass/fail and rare faults
 

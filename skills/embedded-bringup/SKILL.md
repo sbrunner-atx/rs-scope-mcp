@@ -26,7 +26,7 @@ capture(sources=["CH1"], note="3V3 ripple, idle")
 - Report ripple Vpp and its frequency (the regulator's switching frequency shows up as
   `frequency_hz`), and any spikes at the switching edges.
 - Then the DC level with `CHAN1:COUP DCL` and a coarser scale, or `measure(types=["MEAN"])`.
-- The 20 MHz limit (`B20`) removes probe pick-up that is not on the rail; say when it was on.
+- The 20 MHz limit (`B20`) removes probe pick-up that is not on the rail; say for which captures it was on.
 
 **Under load.** Repeat with the motors spinning, radios transmitting, LEDs on. Compare the two
 captures: `data(action="sql", sql="select note, json_extract(stats,'$.vpp') from series s join
@@ -40,7 +40,7 @@ captures c on c.id=s.capture_id where c.session_id='<session>'")`.
    (single acquisition).
 3. Delays between rails: `measure(source="CH1", types=["DEL"])` after
    `scpi(["MEAS1:SOUR CH1,CH2"])`, or read edges from `data(action="series", ...)` windows.
-4. Check reset releases after the rails are in regulation, and how long the rail takes to rise
+4. Check that reset releases after the rails are in regulation, and how long each rail takes to rise
    (`RTIM`). Brown-out problems show as a rail that dips during the first current surge.
 
 ## Clocks
@@ -63,7 +63,7 @@ captures c on c.id=s.capture_id where c.session_id='<session>'")`.
 
 ## Sensor buses
 
-- Decode and check health: set up I2C or SPI (see bus-reverse-engineering), `capture(["BUS1"])`,
+- Decode and check health: set up I2C or SPI (see the bus-reverse-engineering skill), `capture(["BUS1"])`,
   then `data(action="frames", bus=1, status="not_ok")`. NACKs on a device that should answer mean
   wrong address, device in reset, or a bus problem.
 - **I2C timing:** put SDA or SCL on an analog channel and `measure(types=["RTIM"])`. The rise time
@@ -85,12 +85,12 @@ hex bytes for binary ones.
 
 ## Intermittent faults
 
-1. **Catch the bad one with a mask.** Show a known-good signal, `mask(action="create",
+1. **Catch the bad acquisition with a mask.** Show a known-good signal, `mask(action="create",
    source="CH1", x_margin_div=0.05, y_margin_div=0.2)`, then `mask(action="test",
    acquisitions=5000, keep_failed=true)`. Only failing acquisitions stay in segmented memory.
 2. **Look at the failures:** `history(action="harvest", sources=["CH1","BUS1"])`; each row is one
    failing acquisition.
-3. **Glitches and runts:** trigger on them directly: `TRIG:A:TYPE RUNT` with
+3. **Glitches and runts:** trigger on them directly with `TRIG:A:TYPE RUNT` with
    `TRIG:A:LEV1:RUNT:LOW` / `UPP`, or `TRIG:A:TYPE WIDT` for pulses shorter than they should be,
    with `TRIG:A:MODE NORM`.
 4. **Noisy signals:** `TRIG:A:EDGE:FILT:HFR ON` keeps noise from triggering on the wrong slope.

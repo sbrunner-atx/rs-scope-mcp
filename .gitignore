@@ -7,3 +7,4 @@ dist/
 *.mcpb
 # local harvest store (captures, screenshots, decode tables)
 .rs-scope/
+notes/
